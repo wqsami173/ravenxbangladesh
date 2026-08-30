@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>RavenX Bangladesh</title>
+
+  <!-- Font Awesome -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+  >
+
+  <!-- Google Font -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Creepster&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: #f5e6d3;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      max-width: 850px;
+      width: 100%;
+      padding: 2.5rem;
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e0d5c5;
+      padding-bottom: 1.2rem;
+    }
+
+    .card-header h1 {
+      font-size: 2.2rem;
+      color: #e65100;
+      margin-bottom: 0.3rem;
+    }
+
+    .card-header p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .event-badge {
+      background: #f0e4d3;
+      color: #e65100;
+      padding: 6px 16px;
+      border-radius: 30px;
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+    }
+
+    label i {
+      margin-right: 6px;
+      color: #e65100;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+      background: #fafafa;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #e65100;
+      outline: none;
+      background: #fff;
+    }
+
+    input::placeholder {
+      color: #aaa;
+    }
+
+    /* Distance */
+
+    .distance-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .distance-card {
+      background: #f8f8f8;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .distance-card:hover {
+      border-color: #e65100;
+      background: #fff3e0;
+    }
+
+    .distance-card.selected {
+      border-color: #e65100;
+      background: #fff3e0;
+      box-shadow: 0 2px 10px rgba(230, 81, 0, 0.2);
+    }
+
+    .distance-card input[type="radio"] {
+      display: none;
+    }
+
+    .medal-img {
+      width: 180px;
+      height: 200px;
+      object-fit: cover;
+      margin-bottom: 10px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      border-radius: 8px;
+    }
+
+    .distance-name {
+      font-family: 'Creepster', cursive;
+      font-size: 1.3rem;
+      font-weight: 400;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    /* Category */
+
+    .category-options {
+      display: flex;
+      gap: 1rem;
+      margin-top: 5px;
+    }
+
+    .category-option {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      background: #f8f8f8;
+      padding: 12px 0;
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+      font-weight: 600;
+      color: #333;
+      transition: 0.3s;
+    }
+
+    .category-option.selected {
+      background: #e65100;
+      color: white;
+      border-color: #e65100;
+    }
+
+    .category-option:hover {
+      border-color: #e65100;
+    }
+
+    /* Student ID */
+
+    #studentIdBox {
+      display: none;
+      background: #fff3e0;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #e65100;
+      margin-top: 10px;
+    }
+
+    #studentIdBox.show {
+      display: block;
+    }
+
+    /* Price */
+
+    .price-display {
+      background: #e65100;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    /* Payment */
+
+    .payment-method {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+
+    .pay-option {
+      background: #f8f8f8;
+      border: 2px solid #e0e0e0;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .pay-option.active {
+      background: #e65100;
+      color: white;
+      border-color: #e65100;
+    }
+
+    .pay-option:hover {
+      border-color: #e65100;
+    }
+
+    /* Payment Number */
+
+    .pay-number-box {
+      background: #f0f4f8;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #d0d9e0;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pay-number-box .number {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #1a2a3a;
+      letter-spacing: 0.5px;
+    }
+
+    .copy-btn {
+      background: #e65100;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.95rem;
+    }
+
+    .copy-btn:hover {
+      background: #bf360c;
+    }
+
+    .copy-btn i {
+      margin-right: 5px;
+    }
+
+    /* Submit */
+
+    .btn-submit {
+      background: #e65100;
+      color: white;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 16px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+
+    .btn-submit:hover {
+      background: #bf360c;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .footer-note {
+      margin-top: 20px;
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 600px) {
+
+      .card {
+        padding: 1.5rem;
+      }
+
+      .distance-selector {
+        grid-template-columns: 1fr;
+      }
+
+      .row {
+        flex-direction: column;
+      }
+
+      .medal-img {
+        width: 180px;
+        height: 200px;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div class="card-header">
+
+      <h1>
+        <i class="fas fa-ghost"></i>
+        RavenX Bangladesh
+        <i class="fas fa-ghost"></i>
+      </h1>
+
+      <p>
+        Registration Form · Shadow Sprint Run 2026
+      </p>
+
+      <div class="event-badge">
+        Event Date: 1 Oct - 31 Oct
+      </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- REGISTRATION FORM -->
+    <!-- ========================= -->
+
+    <form
+      id="registrationForm"
+      enctype="multipart/form-data"
+    >
+
+      <!-- DISTANCE -->
+
+      <div>
+
+        <label>
+          <i class="fas fa-route"></i>
+          Select Distance
+        </label>
+
+        <div class="distance-selector">
+
+          <label
+            class="distance-card"
+            id="dist3km"
+          >
+
+            <input
+              type="radio"
+              name="distance"
+              value="3.1km"
+              checked
+            >
+
+            <img
+              src="S1.jpeg"
+              class="medal-img"
+              
+            >
+
+            <div class="distance-name">
+              3.1 km
+            </div>
+
+          </label>
+
+
+          <label
+            class="distance-card"
+            id="dist6km"
+          >
+
+            <input
+              type="radio"
+              name="distance"
+              value="6.66km"
+            >
+
+            <img
+              src="S1.jpeg"
+              class="medal-img"
+              
+            >
+
+            <div class="distance-name">
+              6.66 km
+            </div>
+
+          </label>
+
+
+          <label
+            class="distance-card"
+            id="dist13km"
+          >
+
+            <input
+              type="radio"
+              name="distance"
+              value="13km"
+            >
+
+            <img
+              src="S1.jpeg"
+              class="medal-img"
+              
+            >
+
+            <div class="distance-name">
+              13 km
+            </div>
+
+          </label>
+
+        </div>
+
+      </div>
+
+
+      <!-- NAME + EMAIL -->
+
+      <div class="row">
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-user"></i>
+            Name
+          </label>
+
+          <input
+            type="text"
+            name="name"
+            placeholder="Full Name"
+            required
+          >
+
+        </div>
+
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-envelope"></i>
+            Email Address
+          </label>
+
+          <input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            required
+          >
+
+        </div>
+
+      </div>
+
+
+      <!-- PHONE + CATEGORY -->
+
+      <div class="row">
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-phone"></i>
+            Phone / WhatsApp
+          </label>
+
+          <input
+            type="tel"
+            name="phone"
+            placeholder="01XXXXXXXXX"
+            required
+          >
+
+        </div>
+
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-tag"></i>
+            Category
+          </label>
+
+          <div class="category-options">
+
+            <label
+              class="category-option"
+              id="studentLabel"
+            >
+
+              <input
+                type="radio"
+                name="category"
+                value="student"
+                id="studentRadio"
+                style="display:none;"
+              >
+
+              Student
+
+            </label>
+
+
+            <label
+              class="category-option"
+              id="regularLabel"
+            >
+
+              <input
+                type="radio"
+                name="category"
+                value="regular"
+                id="regularRadio"
+                style="display:none;"
+                checked
+              >
+
+              Regular
+
+            </label>
+
+          </div>
+
+
+          <div style="margin-top:10px;">
+
+            <span
+              class="price-display"
+              id="priceBox"
+            >
+              ৳ 649
+            </span>
+
+            <span
+              style="
+                color:#777;
+                font-size:0.9rem;
+                margin-left:10px;
+              "
+            >
+              Registration Fee
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- STUDENT ID -->
+
+      <div id="studentIdBox">
+
+        <label>
+          <i class="fas fa-id-card"></i>
+          Student ID Card
+        </label>
+
+        <input
+          type="file"
+          name="student_id"
+          id="studentIdInput"
+          accept="image/jpeg,image/png,image/webp"
+        >
+
+        <p
+          style="
+            color:#888;
+            font-size:0.85rem;
+            margin-top:6px;
+          "
+        >
+          Upload your student ID card image
+          (JPG, PNG or WEBP · Max 5MB)
+        </p>
+
+      </div>
+
+
+      <!-- GENDER + PAYMENT -->
+
+      <div class="row">
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-venus-mars"></i>
+            Gender
+          </label>
+
+          <select
+            name="gender"
+            required
+          >
+
+            <option value="male">
+              Male
+            </option>
+
+            <option value="female">
+              Female
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-credit-card"></i>
+            Payment Method
+          </label>
+
+
+          <div class="payment-method">
+
+            <label
+              class="pay-option active"
+              id="bkashLabel"
+            >
+
+              <input
+                type="radio"
+                name="payment_method"
+                value="Bkash"
+                style="display:none;"
+                checked
+              >
+
+              Bkash
+
+            </label>
+
+
+            <label
+              class="pay-option"
+              id="nagadLabel"
+            >
+
+              <input
+                type="radio"
+                name="payment_method"
+                value="Nagad"
+                style="display:none;"
+              >
+
+              Nagad
+
+            </label>
+
+
+            <label
+              class="pay-option"
+              id="rocketLabel"
+            >
+
+              <input
+                type="radio"
+                name="payment_method"
+                value="Rocket"
+                style="display:none;"
+              >
+
+              Rocket
+
+            </label>
+
+          </div>
+
+
+          <!-- PAYMENT NUMBER -->
+
+          <div
+            id="paymentNumberBox"
+            class="pay-number-box"
+          >
+
+            <span
+              class="number"
+              id="payNumberDisplay"
+            >
+              01805749874 (Payment)
+            </span>
+
+
+            <button
+              type="button"
+              class="copy-btn"
+              id="copyPayBtn"
+            >
+
+              <i class="fas fa-copy"></i>
+              Copy
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- PAYMENT INFO -->
+
+      <div class="row">
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-mobile-alt"></i>
+            Your Payment Number
+          </label>
+
+          <input
+            type="text"
+            name="payment_number"
+            placeholder="01XXXXXXXXX"
+            required
+          >
+
+        </div>
+
+
+        <div class="col">
+
+          <label>
+            <i class="fas fa-exchange-alt"></i>
+            Transaction ID
+          </label>
+
+          <input
+            type="text"
+            name="trx_id"
+            placeholder="TXN..."
+            required
+          >
+
+        </div>
+
+      </div>
+
+
+      <!-- SUBMIT -->
+
+      <button
+        type="submit"
+        class="btn-submit"
+      >
+
+        <i class="fas fa-check-circle"></i>
+        Register Now
+
+      </button>
+
+
+      <div class="footer-note">
+        Thank You for Running with RavenX Bangladesh
+      </div>
+
+    </form>
+
+  </div>
+
+
+  <script>
+
+    (function () {
+
+      // ==========================================
+      // DISTANCE SELECTION
+      // ==========================================
+
+      const distCards =
+        document.querySelectorAll('.distance-card');
+
+      const distRadios =
+        document.querySelectorAll(
+          'input[name="distance"]'
+        );
+
+
+      function updateDistanceUI() {
+
+        distCards.forEach(card => {
+
+          card.classList.remove('selected');
+
+          const radio =
+            card.querySelector('input');
+
+          if (radio.checked) {
+
+            card.classList.add('selected');
+
+          }
+
+        });
+
+      }
+
+
+      distRadios.forEach(radio => {
+
+        radio.addEventListener(
+          'change',
+          updateDistanceUI
+        );
+
+      });
+
+
+      distCards.forEach(card => {
+
+        card.addEventListener(
+          'click',
+          function () {
+
+            const radio =
+              this.querySelector('input');
+
+            radio.checked = true;
+
+            updateDistanceUI();
+
+          }
+        );
+
+      });
+
+
+      updateDistanceUI();
+
+
+      // ==========================================
+      // CATEGORY + PRICE
+      // ==========================================
+
+      const studentRadio =
+        document.getElementById(
+          'studentRadio'
+        );
+
+      const regularRadio =
+        document.getElementById(
+          'regularRadio'
+        );
+
+      const priceBox =
+        document.getElementById(
+          'priceBox'
+        );
+
+      const studentIdBox =
+        document.getElementById(
+          'studentIdBox'
+        );
+
+      const studentLabel =
+        document.getElementById(
+          'studentLabel'
+        );
+
+      const regularLabel =
+        document.getElementById(
+          'regularLabel'
+        );
+
+      const studentIdInput =
+        document.getElementById(
+          'studentIdInput'
+        );
+
+
+      function updateCategoryUI() {
+
+        if (studentRadio.checked) {
+
+          priceBox.innerText =
+            '৳ 599';
+
+          studentIdBox.classList.add(
+            'show'
+          );
+
+          studentIdInput.setAttribute(
+            'required',
+            'required'
+          );
+
+          studentLabel.classList.add(
+            'selected'
+          );
+
+          regularLabel.classList.remove(
+            'selected'
+          );
+
+        } else {
+
+          priceBox.innerText =
+            '৳ 649';
+
+          studentIdBox.classList.remove(
+            'show'
+          );
+
+          studentIdInput.removeAttribute(
+            'required'
+          );
+
+          regularLabel.classList.add(
+            'selected'
+          );
+
+          studentLabel.classList.remove(
+            'selected'
+          );
+
+        }
+
+      }
+
+
+      studentRadio.addEventListener(
+        'change',
+        updateCategoryUI
+      );
+
+      regularRadio.addEventListener(
+        'change',
+        updateCategoryUI
+      );
+
+
+      studentLabel.addEventListener(
+        'click',
+        function (e) {
+
+          e.preventDefault();
+
+          studentRadio.checked = true;
+
+          updateCategoryUI();
+
+        }
+      );
+
+
+      regularLabel.addEventListener(
+        'click',
+        function (e) {
+
+          e.preventDefault();
+
+          regularRadio.checked = true;
+
+          updateCategoryUI();
+
+        }
+      );
+
+
+      regularRadio.checked = true;
+
+      updateCategoryUI();
+
+
+      // ==========================================
+      // PAYMENT NUMBERS
+      // ==========================================
+
+      const payNumberDisplay =
+        document.getElementById(
+          'payNumberDisplay'
+        );
+
+      const copyBtn =
+        document.getElementById(
+          'copyPayBtn'
+        );
+
+
+      const paymentDisplay = {
+
+        Bkash:
+          '01805749874 (Payment)',
+
+        Nagad:
+          '01687414286 (Send Money)',
+
+        Rocket:
+          '01624577374 (Send Money)'
+
+      };
+
+
+      const paymentRaw = {
+
+        Bkash:
+          '01805749874',
+
+        Nagad:
+          '01687414286',
+
+        Rocket:
+          '01624577374'
+
+      };
+
+
+      const payRadios =
+        document.querySelectorAll(
+          'input[name="payment_method"]'
+        );
+
+
+      const payLabels =
+        document.querySelectorAll(
+          '.pay-option'
+        );
+
+
+      function updatePaymentUI() {
+
+        payLabels.forEach(label => {
+
+          label.classList.remove(
+            'active'
+          );
+
+          const radio =
+            label.querySelector('input');
+
+          if (radio.checked) {
+
+            label.classList.add(
+              'active'
+            );
+
+            const method =
+              radio.value;
+
+            payNumberDisplay.textContent =
+              paymentDisplay[method];
+
+          }
+
+        });
+
+      }
+
+
+      payRadios.forEach(radio => {
+
+        radio.addEventListener(
+          'change',
+          updatePaymentUI
+        );
+
+      });
+
+
+      payLabels.forEach(label => {
+
+        label.addEventListener(
+          'click',
+          function () {
+
+            const radio =
+              this.querySelector('input');
+
+            radio.checked = true;
+
+            updatePaymentUI();
+
+          }
+        );
+
+      });
+
+
+      // ==========================================
+      // COPY PAYMENT NUMBER
+      // ==========================================
+
+      copyBtn.addEventListener(
+        'click',
+        function () {
+
+          let currentMethod =
+            'Bkash';
+
+
+          payRadios.forEach(radio => {
+
+            if (radio.checked) {
+
+              currentMethod =
+                radio.value;
+
+            }
+
+          });
+
+
+          const numberToCopy =
+            paymentRaw[currentMethod];
+
+
+          if (
+            navigator.clipboard &&
+            navigator.clipboard.writeText
+          ) {
+
+            navigator.clipboard
+              .writeText(numberToCopy)
+              .then(() => {
+
+                alert(
+                  'Payment number copied: ' +
+                  numberToCopy
+                );
+
+              })
+              .catch(() => {
+
+                copyViaInput(
+                  numberToCopy
+                );
+
+              });
+
+          } else {
+
+            copyViaInput(
+              numberToCopy
+            );
+
+          }
+
+        }
+      );
+
+
+      function copyViaInput(text) {
+
+        const tempInput =
+          document.createElement('input');
+
+        tempInput.value = text;
+
+        document.body.appendChild(
+          tempInput
+        );
+
+        tempInput.select();
+
+        document.execCommand(
+          'copy'
+        );
+
+        document.body.removeChild(
+          tempInput
+        );
+
+        alert(
+          'Payment number copied: ' +
+          text
+        );
+
+      }
+
+
+      updatePaymentUI();
+
+
+      // ==========================================
+      // FORM SUBMIT
+      // BACKEND CONNECTION
+      // ==========================================
+
+      const registrationForm =
+        document.getElementById(
+          'registrationForm'
+        );
+
+
+      registrationForm.addEventListener(
+        'submit',
+        async function (e) {
+
+          e.preventDefault();
+
+
+          // Browser validation
+
+          if (!registrationForm.checkValidity()) {
+
+            registrationForm.reportValidity();
+
+            return;
+
+          }
+
+
+          const submitBtn =
+            registrationForm.querySelector(
+              '.btn-submit'
+            );
+
+
+          // Loading state
+
+          submitBtn.disabled = true;
+
+          submitBtn.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+
+          try {
+
+            // ==================================
+            // CREATE FORM DATA
+            // ==================================
+
+            const formData =
+              new FormData(
+                registrationForm
+              );
+
+
+            // ==================================
+            // SEND TO BACKEND
+            // ==================================
+
+            const response =
+              await fetch(
+                '/api/register',
+                {
+                  method: 'POST',
+                  body: formData
+                }
+              );
+
+
+            // ==================================
+            // READ RESPONSE
+            // ==================================
+
+            let data;
+
+            try {
+
+              data =
+                await response.json();
+
+            } catch {
+
+              throw new Error(
+                'Invalid response from server.'
+              );
+
+            }
+
+
+            // ==================================
+            // ERROR
+            // ==================================
+
+            if (
+              !response.ok ||
+              !data.success
+            ) {
+
+              throw new Error(
+                data.message ||
+                'Registration failed.'
+              );
+
+            }
+
+
+            // ==================================
+            // SUCCESS
+            // ==================================
+
+            const r =
+              data.registration;
+
+
+            alert(
+
+              `✅ Registration Successful!\n\n` +
+
+              `Registration ID: ${r.registration_id}\n\n` +
+
+              `Name: ${r.name}\n` +
+
+              `Distance: ${r.distance}\n` +
+
+              `Category: ${
+                r.category === 'student'
+                  ? 'Student'
+                  : 'Regular'
+              }\n` +
+
+              `Registration Fee: ৳${r.amount}\n` +
+
+              `Payment: ${r.payment_method}\n` +
+
+              `Transaction ID: ${r.trx_id}\n\n` +
+
+              `Payment Status: Pending\n\n` +
+
+              `Thank you for registering with RavenX Bangladesh!`
+
+            );
+
+
+            // ==================================
+            // RESET FORM
+            // ==================================
+
+            registrationForm.reset();
+
+
+            // ==================================
+            // RESTORE DEFAULT DISTANCE
+            // ==================================
+
+            const defaultDistance =
+              registrationForm.querySelector(
+                'input[name="distance"][value="3.1km"]'
+              );
+
+
+            if (defaultDistance) {
+
+              defaultDistance.checked =
+                true;
+
+              updateDistanceUI();
+
+            }
+
+
+            // ==================================
+            // RESTORE DEFAULT CATEGORY
+            // ==================================
+
+            regularRadio.checked =
+              true;
+
+            studentRadio.checked =
+              false;
+
+            updateCategoryUI();
+
+
+            // ==================================
+            // RESTORE DEFAULT PAYMENT
+            // ==================================
+
+            const defaultPayment =
+              registrationForm.querySelector(
+                'input[name="payment_method"][value="Bkash"]'
+              );
+
+
+            if (defaultPayment) {
+
+              defaultPayment.checked =
+                true;
+
+              updatePaymentUI();
+
+            }
+
+
+          } catch (error) {
+
+            console.error(
+              'Registration Error:',
+              error
+            );
+
+
+            // Network/server error
+
+            if (
+              error instanceof TypeError
+            ) {
+
+              alert(
+                '❌ Cannot connect to the server.\n\n' +
+                'Make sure your Node.js backend is running.'
+              );
+
+            } else {
+
+              alert(
+                '❌ Registration Failed!\n\n' +
+                error.message
+              );
+
+            }
+
+          } finally {
+
+            // ==================================
+            // RESTORE BUTTON
+            // ==================================
+
+            submitBtn.disabled =
+              false;
+
+            submitBtn.innerHTML =
+              '<i class="fas fa-check-circle"></i> Register Now';
+
+          }
+
+        }
+      );
+
+    })();
+
+  </script>
+
+</body>
+</html>
