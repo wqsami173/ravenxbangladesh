@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const { Pool } = require("pg");
 require("dotenv").config();
 
@@ -9,6 +10,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve frontend files
+app.use(express.static(path.join(__dirname)));
+
 // Neon Database Connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -17,9 +21,9 @@ const pool = new Pool({
   }
 });
 
-// Test route
+// Homepage
 app.get("/", (req, res) => {
-  res.send("RavenX Bangladesh Backend is running!");
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // Test database connection
@@ -107,7 +111,7 @@ app.post("/api/register", async (req, res) => {
 });
 
 // Start Server
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`RavenX server running on port ${PORT}`);
