@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RavenX Bangladesh</title>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: #f5e6d3;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      max-width: 850px;
+      width: 100%;
+      padding: 2.5rem;
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e0d5c5;
+      padding-bottom: 1.2rem;
+    }
+
+    .card-header h1 {
+      font-size: 2.2rem;
+      color: #e65100;
+      margin-bottom: 0.3rem;
+    }
+
+    .card-header p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .event-badge {
+      background: #f0e4d3;
+      color: #e65100;
+      padding: 6px 16px;
+      border-radius: 30px;
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+    }
+
+    label i {
+      margin-right: 6px;
+      color: #e65100;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+      background: #fafafa;
+    }
+
+    input:focus, select:focus {
+      border-color: #e65100;
+      outline: none;
+      background: #fff;
+    }
+
+    input::placeholder {
+      color: #aaa;
+    }
+
+    /* Distance selector cards */
+    .distance-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .distance-card {
+      background: #f8f8f8;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .distance-card:hover {
+      border-color: #e65100;
+      background: #fff3e0;
+    }
+
+    .distance-card.selected {
+      border-color: #e65100;
+      background: #fff3e0;
+      box-shadow: 0 2px 10px rgba(230, 81, 0, 0.2);
+    }
+
+    .distance-card input[type="radio"] {
+      display: none;
+    }
+
+    .medal-img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      margin-bottom: 10px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .distance-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .distance-category {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e65100;
+      margin-bottom: 5px;
+    }
+
+    .medal-label {
+      font-size: 0.85rem;
+      color: #777;
+      font-weight: 500;
+    }
+
+    /* Category options */
+    .category-options {
+      display: flex;
+      gap: 1rem;
+      margin-top: 5px;
+    }
+
+    .category-option {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      background: #f8f8f8;
+      padding: 12px 0;
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+      font-weight: 600;
+      color: #333;
+      transition: 0.3s;
+    }
+
+    .category-option.selected {
+      background: #e65100;
+      color: white;
+      border-color: #e65100;
+    }
+
+    .category-option:hover {
+      border-color: #e65100;
+    }
+
+    #studentIdBox {
+      display: none;
+      background: #fff3e0;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #e65100;
+      margin-top: 10px;
+    }
+
+    #studentIdBox.show {
+      display: block;
+    }
+
+    .price-display {
+      background: #e65100;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    /* Payment method */
+    .payment-method {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+
+    .pay-option {
+      background: #f8f8f8;
+      border: 2px solid #e0e0e0;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .pay-option.active {
+      background: #e65100;
+      color: white;
+      border-color: #e65100;
+    }
+
+    .pay-option:hover {
+      border-color: #e65100;
+    }
+
+    /* payment number box */
+    .pay-number-box {
+      background: #f0f4f8;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #d0d9e0;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pay-number-box .number {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #1a2a3a;
+      letter-spacing: 0.5px;
+    }
+
+    .pay-number-box .copy-btn {
+      background: #e65100;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.95rem;
+    }
+
+    .pay-number-box .copy-btn:hover {
+      background: #bf360c;
+    }
+
+    .pay-number-box .copy-btn i {
+      margin-right: 5px;
+    }
+
+    .btn-submit {
+      background: #e65100;
+      color: white;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 16px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+
+    .btn-submit:hover {
+      background: #bf360c;
+    }
+
+    .footer-note {
+      margin-top: 20px;
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 600px) {
+      .distance-selector {
+        grid-template-columns: 1fr;
+      }
+      
+      .row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1><i class="fas fa-ghost"></i> RavenX Bangladesh <i class="fas fa-ghost"></i></h1>
+      <p>Registration Form · Shadow Sprint Run 2026</p>
+      <div class="event-badge">Event Date: 1 Oct - 31 Oct</div>
+    </div>
+    
+    <form id="registrationForm">
+      <!-- Distance Selection with Medals -->
+      <div>
+        <label><i class="fas fa-route"></i> Select Distance</label>
+        <div class="distance-selector">
+          <label class="distance-card" id="dist3km">
+            <input type="radio" name="distance" value="3.1km" checked>
+            <img src="3.1km.png"  class="medal-img"  style="object-fit: cover; height: 190px; width:180px;">
+            <div class="distance-name">3.1 km</div>
+          </label>
+          
+          <label class="distance-card" id="dist6km">
+            <input type="radio" name="distance" value="6.66km">
+            <img src="6.66km.jpg"  class="medal-img"  style="object-fit: cover; height: 190px; width:180px;">
+            <div class="distance-name">6.66 km</div>
+          </label>
+          
+          <label class="distance-card" id="dist13km">
+            <input type="radio" name="distance" value="13km">
+            <img src="10km.jpg"  class="medal-img"  style="object-fit: cover; height: 190px; width:180px;">
+            <div class="distance-name">13 km</div>
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label><i class="fas fa-user"></i> Name</label>
+          <input type="text" name="name" placeholder="Full Name" required>
+        </div>
+        <div class="col">
+          <label><i class="fas fa-envelope"></i> Email Address</label>
+          <input type="email" name="email" placeholder="you@email.com" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label><i class="fas fa-phone"></i> Phone / WhatsApp</label>
+          <input type="tel" name="phone" placeholder="+880 1XXXXXXXXX" required>
+        </div>
+        <div class="col">
+          <label><i class="fas fa-tag"></i> Category</label>
+          <div class="category-options">
+            <label class="category-option" id="studentLabel">
+              <input type="radio" name="category" value="student" id="studentRadio" style="display:none;"> Student
+            </label>
+            <label class="category-option" id="regularLabel">
+              <input type="radio" name="category" value="regular" id="regularRadio" style="display:none;" checked> Regular
+            </label>
+          </div>
+          <div style="margin-top:10px;">
+            <span class="price-display" id="priceBox">৳ 649</span>
+            <span style="color:#777; font-size:0.9rem; margin-left:10px;">Registration Fee</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student ID Box (hidden initially) -->
+      <div id="studentIdBox">
+        <label><i class="fas fa-id-card"></i> Student ID Card</label>
+        <input type="file" name="student_id" id="studentIdInput" accept="image/*">
+        <p style="color:#888; font-size:0.85rem; margin-top:6px;">Upload your student ID card image</p>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label><i class="fas fa-venus-mars"></i> Gender</label>
+          <select name="gender" required>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="col">
+          <label><i class="fas fa-credit-card"></i> Payment Method</label>
+          <div class="payment-method">
+            <label class="pay-option active" id="bkashLabel">
+              <input type="radio" name="payment_method" value="Bkash" style="display:none;" checked> Bkash
+            </label>
+            <label class="pay-option" id="nagadLabel">
+              <input type="radio" name="payment_method" value="Nagad" style="display:none;"> Nagad
+            </label>
+            <label class="pay-option" id="rocketLabel">
+              <input type="radio" name="payment_method" value="Rocket" style="display:none;"> Rocket
+            </label>
+          </div>
+          <!-- Payment number display with copy -->
+          <div id="paymentNumberBox" class="pay-number-box">
+            <span class="number" id="payNumberDisplay">01805749874 (Payment)</span>
+            <button type="button" class="copy-btn" id="copyPayBtn"><i class="fas fa-copy"></i> Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label><i class="fas fa-mobile-alt"></i> Your Payment Number</label>
+          <input type="text" name="payment_number" placeholder="01XXXXXXXXX" required>
+        </div>
+        <div class="col">
+          <label><i class="fas fa-exchange-alt"></i> Transaction ID</label>
+          <input type="text" name="trx_id" placeholder="TXN..." required>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit"><i class="fas fa-check-circle"></i> Register Now</button>
+      <div class="footer-note">Thank you for being with ravenx bangladesh</div>
+    </form>
+  </div>
+
+  <script>
+    (function(){
+      // Distance selection
+      const distCards = document.querySelectorAll('.distance-card');
+      const distRadios = document.querySelectorAll('input[name="distance"]');
+      
+      function updateDistanceUI() {
+        distCards.forEach(card => {
+          card.classList.remove('selected');
+          const radio = card.querySelector('input');
+          if(radio.checked) card.classList.add('selected');
+        });
+      }
+      
+      distRadios.forEach(radio => {
+        radio.addEventListener('change', updateDistanceUI);
+      });
+      
+      distCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+          const radio = this.querySelector('input');
+          radio.checked = true;
+          updateDistanceUI();
+        });
+      });
+      
+      updateDistanceUI();
+      
+      // Category + price
+      const studentRadio = document.getElementById('studentRadio');
+      const regularRadio = document.getElementById('regularRadio');
+      const priceBox = document.getElementById('priceBox');
+      const studentIdBox = document.getElementById('studentIdBox');
+      const studentLabel = document.getElementById('studentLabel');
+      const regularLabel = document.getElementById('regularLabel');
+      const studentIdInput = document.getElementById('studentIdInput');
+      
+      function updateCategoryUI() {
+        if(studentRadio.checked) {
+          priceBox.innerText = '৳ 599';
+          studentIdBox.classList.add('show');
+          studentIdInput.setAttribute('required', 'required');
+          studentLabel.classList.add('selected');
+          regularLabel.classList.remove('selected');
+        } else {
+          priceBox.innerText = '৳ 649';
+          studentIdBox.classList.remove('show');
+          studentIdInput.removeAttribute('required');
+          regularLabel.classList.add('selected');
+          studentLabel.classList.remove('selected');
+        }
+      }
+      
+      studentRadio.addEventListener('change', updateCategoryUI);
+      regularRadio.addEventListener('change', updateCategoryUI);
+      
+      studentLabel.addEventListener('click', function(e) {
+        e.preventDefault();
+        studentRadio.checked = true;
+        updateCategoryUI();
+      });
+      
+      regularLabel.addEventListener('click', function(e) {
+        e.preventDefault();
+        regularRadio.checked = true;
+        updateCategoryUI();
+      });
+      
+      // Initialize (regular selected by default)
+      regularRadio.checked = true;
+      updateCategoryUI();
+      
+      // ---------- PAYMENT NUMBER + COPY ----------
+      const payNumberDisplay = document.getElementById('payNumberDisplay');
+      const copyBtn = document.getElementById('copyPayBtn');
+      
+      // Payment numbers for each method (display format with "(Payment)" label)
+      const paymentDisplay = {
+        'Bkash': '01805749874 (Payment)',
+        'Nagad': '01687414286 (Payment)',
+        'Rocket': '01624577374 (Payment)'
+      };
+      
+      // Raw numbers for copying (only digits)
+      const paymentRaw = {
+        'Bkash': '01805749874',
+        'Nagad': '01687414286',
+        'Rocket': '01624577374'
+      };
+      
+      // Get all payment radio buttons and labels
+      const payRadios = document.querySelectorAll('input[name="payment_method"]');
+      const payLabels = document.querySelectorAll('.pay-option');
+      
+      function updatePaymentUI() {
+        payLabels.forEach(label => {
+          label.classList.remove('active');
+          const radio = label.querySelector('input');
+          if(radio.checked) {
+            label.classList.add('active');
+            // update displayed number with (Payment) label
+            const method = radio.value;
+            payNumberDisplay.textContent = paymentDisplay[method] || '01234567890 (Payment)';
+          }
+        });
+      }
+      
+      // Event for radio change
+      payRadios.forEach(radio => {
+        radio.addEventListener('change', updatePaymentUI);
+      });
+      
+      // Click on label (acts as radio)
+      payLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+          const radio = this.querySelector('input');
+          radio.checked = true;
+          updatePaymentUI();
+        });
+      });
+      
+      // Copy button functionality - copies ONLY the number (digits), not the "(Payment)" text
+      copyBtn.addEventListener('click', function() {
+        // Get current method
+        let currentMethod = 'Bkash';
+        payRadios.forEach(radio => {
+          if(radio.checked) {
+            currentMethod = radio.value;
+          }
+        });
+        const numberToCopy = paymentRaw[currentMethod] || '01805749874';
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(numberToCopy).then(() => {
+            alert('Payment number copied: ' + numberToCopy);
+          }).catch(() => {
+            copyViaInput(numberToCopy);
+          });
+        } else {
+          copyViaInput(numberToCopy);
+        }
+      });
+      
+      function copyViaInput(text) {
+        const tempInput = document.createElement('input');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        alert('Payment number copied: ' + text);
+      }
+      
+      // Set default payment number (Bkash)
+      const defaultPay = document.querySelector('input[name="payment_method"][value="Bkash"]');
+      if(defaultPay) {
+        defaultPay.checked = true;
+        payNumberDisplay.textContent = paymentDisplay['Bkash'];
+      }
+      updatePaymentUI();
+      
+      // Form submit
+     // Form submit
+document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const name = document.querySelector('input[name="name"]').value.trim();
+
+  if (!name) {
+    alert('Please enter your name.');
+    return;
+  }
+
+  if (studentRadio.checked && !studentIdInput.files.length) {
+    alert('Please upload your student ID card.');
+    return;
+  }
+
+  const email = document.querySelector('input[name="email"]').value.trim();
+
+  if (!email) {
+    alert('Please enter your email.');
+    return;
+  }
+
+  const distance = document.querySelector('input[name="distance"]:checked').value;
+  const category = studentRadio.checked ? 'student' : 'regular';
+  const gender = document.querySelector('select[name="gender"]').value;
+  const payment_method = document.querySelector('input[name="payment_method"]:checked').value;
+  const payment_number = document.querySelector('input[name="payment_number"]').value.trim();
+  const trx_id = document.querySelector('input[name="trx_id"]').value.trim();
+
+  const registration_fee = studentRadio.checked ? 599 : 649;
+
+  const submitButton = document.querySelector('.btn-submit');
+
+  submitButton.disabled = true;
+  submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+
+  try {
+    const response = await fetch('http://localhost:3000/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone: document.querySelector('input[name="phone"]').value.trim(),
+        distance,
+        category,
+        gender,
+        payment_method,
+        payment_number,
+        trx_id,
+        registration_fee
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(
+        `✅ Registration Successful!\n\n` +
+        `Name: ${name}\n` +
+        `Distance: ${distance}\n` +
+        `Category: ${category}\n` +
+        `Payment: ${payment_method}\n\n` +
+        `Registration ID: ${data.registration_id}\n\n` +
+        `Thank you! See you there!`
+      );
+
+      document.getElementById('registrationForm').reset();
+
+      regularRadio.checked = true;
+      updateCategoryUI();
+      updatePaymentUI();
+      updateDistanceUI();
+
+    } else {
+      alert('❌ Registration failed.\n\n' + (data.message || 'Please try again.'));
+    }
+
+  } catch (error) {
+    console.error('Submit Error:', error);
+
+    alert(
+      '❌ Could not connect to the server.\n\n' +
+      'Please make sure the RavenX backend is running.'
+    );
+
+  } finally {
+    submitButton.disabled = false;
+    submitButton.innerHTML = '<i class="fas fa-check-circle"></i> Register Now';
+  }
+});
+    })();
+  </script>
+</body>
+</html>
