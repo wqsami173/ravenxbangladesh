@@ -4,26 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RavenX Bangladesh</title>
-
-  <!-- Font Awesome for icons -->
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
-  <!-- Meta Pixel Code -->
-  <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-
-    fbq('init', '1796339418030435');
-    fbq('track', 'PageView');
-  </script>
-  <!-- End Meta Pixel Code -->
-
   <style>
     * {
       margin: 0;
@@ -31,7 +13,6 @@
       box-sizing: border-box;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
     body {
       background: #f5e6d3;
       min-height: 100vh;
@@ -40,34 +21,29 @@
       align-items: center;
       padding: 1.5rem;
     }
-
     .card {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      max-width: 850px;
+      max-width: 900px;
       width: 100%;
       padding: 2.5rem;
     }
-
     .card-header {
       text-align: center;
       margin-bottom: 2rem;
       border-bottom: 1px solid #e0d5c5;
       padding-bottom: 1.2rem;
     }
-
     .card-header h1 {
       font-size: 2.2rem;
       color: #e65100;
       margin-bottom: 0.3rem;
     }
-
     .card-header p {
       color: #666;
       font-size: 1.1rem;
     }
-
     .event-badge {
       background: #f0e4d3;
       color: #e65100;
@@ -78,24 +54,20 @@
       font-size: 0.95rem;
       font-weight: 500;
     }
-
     form {
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
     }
-
     .row {
       display: flex;
       gap: 1.5rem;
       flex-wrap: wrap;
     }
-
     .col {
       flex: 1;
       min-width: 200px;
     }
-
     label {
       display: block;
       margin-bottom: 8px;
@@ -103,12 +75,10 @@
       color: #333;
       font-size: 0.95rem;
     }
-
     label i {
       margin-right: 6px;
       color: #e65100;
     }
-
     input, select {
       width: 100%;
       padding: 12px 16px;
@@ -118,25 +88,22 @@
       transition: all 0.3s;
       background: #fafafa;
     }
-
     input:focus, select:focus {
       border-color: #e65100;
       outline: none;
       background: #fff;
     }
-
     input::placeholder {
       color: #aaa;
     }
 
-    /* Distance selector cards */
+    /* distance cards */
     .distance-selector {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 15px;
       margin-top: 10px;
     }
-
     .distance-card {
       background: #f8f8f8;
       border: 2px solid #e0e0e0;
@@ -146,22 +113,18 @@
       cursor: pointer;
       transition: all 0.3s ease;
     }
-
     .distance-card:hover {
       border-color: #e65100;
       background: #fff3e0;
     }
-
     .distance-card.selected {
       border-color: #e65100;
       background: #fff3e0;
       box-shadow: 0 2px 10px rgba(230, 81, 0, 0.2);
     }
-
     .distance-card input[type="radio"] {
       display: none;
     }
-
     .medal-img {
       width: 80px;
       height: 80px;
@@ -171,7 +134,6 @@
       margin-left: auto;
       margin-right: auto;
     }
-
     .distance-name {
       font-size: 1.3rem;
       font-weight: 700;
@@ -179,26 +141,12 @@
       margin-bottom: 5px;
     }
 
-    .distance-category {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #e65100;
-      margin-bottom: 5px;
-    }
-
-    .medal-label {
-      font-size: 0.85rem;
-      color: #777;
-      font-weight: 500;
-    }
-
-    /* Category options */
+    /* category options (student/regular) */
     .category-options {
       display: flex;
       gap: 1rem;
       margin-top: 5px;
     }
-
     .category-option {
       flex: 1;
       text-align: center;
@@ -211,17 +159,14 @@
       color: #333;
       transition: 0.3s;
     }
-
     .category-option.selected {
       background: #e65100;
       color: white;
       border-color: #e65100;
     }
-
     .category-option:hover {
       border-color: #e65100;
     }
-
     #studentIdBox {
       display: none;
       background: #fff3e0;
@@ -230,11 +175,9 @@
       border-left: 4px solid #e65100;
       margin-top: 10px;
     }
-
     #studentIdBox.show {
       display: block;
     }
-
     .price-display {
       background: #e65100;
       color: white;
@@ -246,14 +189,13 @@
       margin-top: 10px;
     }
 
-    /* Payment method */
+    /* payment */
     .payment-method {
       display: flex;
       gap: 15px;
       margin-top: 5px;
       flex-wrap: wrap;
     }
-
     .pay-option {
       background: #f8f8f8;
       border: 2px solid #e0e0e0;
@@ -263,18 +205,14 @@
       font-weight: 600;
       transition: 0.3s;
     }
-
     .pay-option.active {
       background: #e65100;
       color: white;
       border-color: #e65100;
     }
-
     .pay-option:hover {
       border-color: #e65100;
     }
-
-    /* payment number box */
     .pay-number-box {
       background: #f0f4f8;
       border-radius: 10px;
@@ -287,14 +225,12 @@
       flex-wrap: wrap;
       gap: 10px;
     }
-
     .pay-number-box .number {
       font-weight: 700;
       font-size: 1.2rem;
       color: #1a2a3a;
       letter-spacing: 0.5px;
     }
-
     .pay-number-box .copy-btn {
       background: #e65100;
       color: white;
@@ -306,15 +242,12 @@
       transition: 0.2s;
       font-size: 0.95rem;
     }
-
     .pay-number-box .copy-btn:hover {
       background: #bf360c;
     }
-
     .pay-number-box .copy-btn i {
       margin-right: 5px;
     }
-
     .btn-submit {
       background: #e65100;
       color: white;
@@ -328,11 +261,9 @@
       letter-spacing: 1px;
       margin-top: 10px;
     }
-
     .btn-submit:hover {
       background: #bf360c;
     }
-
     .footer-note {
       margin-top: 20px;
       text-align: center;
@@ -340,1241 +271,549 @@
       font-size: 0.9rem;
     }
 
+    /* description accordion - FIXED */
+    .desc-section {
+      background: #faf6f0;
+      border-radius: 10px;
+      border: 1px solid #e8ddd0;
+      overflow: hidden;
+    }
+    .desc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #3e2c1b;
+      font-size: 1.1rem;
+      background: #faf6f0;
+      transition: background 0.2s;
+      user-select: none;
+    }
+    .desc-header:hover {
+      background: #f0e8dd;
+    }
+    .desc-header i {
+      color: #e65100;
+    }
+    .desc-header .arrow {
+      font-size: 1.3rem;
+      transition: transform 0.3s;
+    }
+    .desc-header .arrow.open {
+      transform: rotate(180deg);
+    }
+    .desc-body {
+      display: none;
+      padding: 0 18px 20px 18px;
+      color: #2d2d2d;
+      line-height: 1.7;
+      background: #faf6f0;
+    }
+    .desc-body.open {
+      display: block;
+    }
+    .desc-body hr {
+      margin: 18px 0;
+      border: 0;
+      border-top: 1px solid #dacfc1;
+    }
+    .desc-body h2 {
+      color: #bf360c;
+      margin: 16px 0 8px;
+    }
+    .desc-body h3 {
+      color: #5d3a1a;
+      margin: 14px 0 6px;
+    }
+    .desc-body ul {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    .desc-body a {
+      color: #bf360c;
+      text-decoration: none;
+    }
+    .desc-body a:hover {
+      text-decoration: underline;
+    }
+
+    /* distance dropdown wrapper (under gender) */
+    .distance-dropdown-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      background: #f5efe8;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #e0d5c5;
+    }
+    .distance-dropdown-wrapper span {
+      font-weight: 600;
+      color: #333;
+    }
+    .distance-dropdown-wrapper select {
+      width: auto;
+      padding: 8px 28px 8px 14px;
+      border-radius: 20px;
+      background: #fff;
+      font-weight: 600;
+      border: 2px solid #e65100;
+      min-width: 120px;
+    }
+
     @media (max-width: 600px) {
       .distance-selector {
         grid-template-columns: 1fr;
       }
-
       .row {
         flex-direction: column;
+      }
+      .card {
+        padding: 1.5rem;
       }
     }
   </style>
 </head>
-
 <body>
+<div class="card">
+  <div class="card-header">
+    <h1><i class="fas fa-ghost"></i> RavenX Bangladesh <i class="fas fa-ghost"></i></h1>
+    <p>Registration Form · Shadow Sprint Run 2026</p>
+    <div class="event-badge">Event Date: 1 Oct - 31 Oct</div>
+  </div>
 
-  <div class="card">
+  <form id="registrationForm">
 
-    <div class="card-header">
-      <h1>
-        <i class="fas fa-ghost"></i>
-        RavenX Bangladesh
-        <i class="fas fa-ghost"></i>
-      </h1>
-
-      <p>Registration Form · Shadow Sprint Run 2026</p>
-
-      <div class="event-badge">
-        Event Date: 1 Oct - 31 Oct
+    <!-- ===== DISTANCE SELECTION (cards) ===== -->
+    <div>
+      <label><i class="fas fa-route"></i> Select Distance</label>
+      <div class="distance-selector">
+        <label class="distance-card" id="dist3km">
+          <input type="radio" name="distance" value="3.1km" checked>
+          <img src="3.1km.png" class="medal-img" style="object-fit: cover; height: 200px; width:180px;">
+          <div class="distance-name">3.1 KM</div>
+        </label>
+        <label class="distance-card" id="dist6km">
+          <input type="radio" name="distance" value="6.66km">
+          <img src="6.66km.jpg" class="medal-img" style="object-fit: cover; height: 200px; width:180px;">
+          <div class="distance-name">6.66 KM</div>
+        </label>
+        <label class="distance-card" id="dist13km">
+          <input type="radio" name="distance" value="13km">
+          <img src="10km.jpg" class="medal-img" style="object-fit: cover; height: 200px; width:180px;">
+          <div class="distance-name">13 KM</div>
+        </label>
       </div>
     </div>
 
-    <form id="registrationForm">
-
-      <!-- Distance Selection with Medals -->
-      <div>
-        <label>
-          <i class="fas fa-route"></i> Select Distance
-        </label>
-
-        <div class="distance-selector">
-
-          <label class="distance-card" id="dist3km">
-            <input type="radio" name="distance" value="3.1km" checked>
-
-            <img
-              src="3.1km.png"
-              class="medal-img"
-              style="object-fit: cover; height: 190px; width:180px;"
-            >
-
-            <div class="distance-name">3.1 km</div>
-          </label>
-
-          <label class="distance-card" id="dist6km">
-            <input type="radio" name="distance" value="6.66km">
-
-            <img
-              src="6.66km.jpg"
-              class="medal-img"
-              style="object-fit: cover; height: 190px; width:180px;"
-            >
-
-            <div class="distance-name">6.66 km</div>
-          </label>
-
-          <label class="distance-card" id="dist13km">
-            <input type="radio" name="distance" value="13km">
-
-            <img
-              src="10km.jpg"
-              class="medal-img"
-              style="object-fit: cover; height: 190px; width:180px;"
-            >
-
-            <div class="distance-name">13 km</div>
-          </label>
-
-        </div>
+    <!-- ===== DESCRIPTION ACCORDION (dropdown arrows) - FIXED ===== -->
+    <div class="desc-section">
+      <div class="desc-header" id="descToggle">
+        <span><i class="fas fa-info-circle"></i> Event Details (Click to Expand)</span>
+        <span class="arrow" id="descArrow"><i class="fas fa-chevron-down"></i></span>
       </div>
-
-      <div class="event-description">
-
-        <h1>🏃‍♂️ Shadow Sprint Run 2026</h1>
-
-        <p>
-          দৌড় হোক নিজের গতিতে, নিজের জায়গা থেকে—কিন্তু লক্ষ্য হোক একটাই:
-          <strong>নিজেকে ছাড়িয়ে যাওয়া!</strong>
-        </p>
-
-        <p>
-          <strong>RavenX Bangladesh</strong> নিয়ে এসেছে
-          <strong>Shadow Sprint Run 2026</strong>—একটি সম্পূর্ণ
-          <strong>Virtual Running Challenge</strong>, যেখানে আপনি দেশের যেকোনো
-          প্রান্ত থেকে, আপনার সুবিধামতো সময়ে অংশগ্রহণ করতে পারবেন।
-          কোনো নির্দিষ্ট মাঠে বা নির্দিষ্ট সময়ে উপস্থিত থাকার প্রয়োজন নেই।
-          শুধু আপনার দৌড়, আপনার পরিশ্রম এবং আপনার অর্জন—সবকিছুই হবে আপনার নিজের মতো করে.
-        </p>
-
+      <div class="desc-body" id="descBody">
+        <h1 style="font-size:1.6rem; margin-top:10px;">🏃‍♂️ Shadow Sprint Run 2026</h1>
+        <p>দৌড় হোক নিজের গতিতে, নিজের জায়গা থেকে—কিন্তু লক্ষ্য হোক একটাই: <strong>নিজেকে ছাড়িয়ে যাওয়া!</strong></p>
+        <p><strong>RavenX Bangladesh</strong> নিয়ে এসেছে <strong>Shadow Sprint Run 2026</strong>—একটি সম্পূর্ণ <strong>Virtual Running Challenge</strong>, যেখানে আপনি দেশের যেকোনো প্রান্ত থেকে, আপনার সুবিধামতো সময়ে অংশগ্রহণ করতে পারবেন। কোনো নির্দিষ্ট মাঠে বা নির্দিষ্ট সময়ে উপস্থিত থাকার প্রয়োজন নেই। শুধু আপনার দৌড়, আপনার পরিশ্রম এবং আপনার অর্জন—সবকিছুই হবে আপনার নিজের মতো করে.</p>
         <hr>
-
-        <h2> Virtual Run কী?</h2>
-
-        <p>
-          Virtual Run হলো এমন একটি Running Event যেখানে অংশগ্রহণকারীরা
-          নির্দিষ্ট কোনো venue-তে একসাথে দৌড়ান না। বরং Event Period-এর মধ্যে
-          নিজের সুবিধামতো <strong>যেকোনো জায়গায় এবং যেকোনো সময়ে</strong>
-          নির্ধারিত দূরত্ব সম্পন্ন করতে পারেন।
-        </p>
-
-        <p>
-          আপনি চাইলে বাসার আশেপাশের রাস্তা, পার্ক, মাঠ, ট্র্যাক কিংবা আপনার
-          পছন্দের যেকোনো নিরাপদ জায়গায় দৌড়াতে পারবেন।
-        </p>
-
-        <p>
-          আপনার দৌড় <strong>Strava App</strong>-এর মাধ্যমে Record করতে হবে।
-          দৌড় শেষ করার পর Strava-এর Run Activity Link আমাদের নির্ধারিত
-          Submission Form-এর মাধ্যমে জমা দিতে হবে।
-        </p>
-
-        <p>
-          অর্থাৎ—<strong>আপনার Run, আপনার সময়, আপনার পথ; কিন্তু Challenge আমাদের সবার।</strong> 🖤
-        </p>
-
+        <h2>Virtual Run কী?</h2>
+        <p>Virtual Run হলো এমন একটি Running Event যেখানে অংশগ্রহণকারীরা নির্দিষ্ট কোনো venue-তে একসাথে দৌড়ান না। বরং Event Period-এর মধ্যে নিজের সুবিধামতো <strong>যেকোনো জায়গায় এবং যেকোনো সময়ে</strong> নির্ধারিত দূরত্ব সম্পন্ন করতে পারেন। আপনি চাইলে বাসার আশেপাশের রাস্তা, পার্ক, মাঠ, ট্র্যাক কিংবা আপনার পছন্দের যেকোনো নিরাপদ জায়গায় দৌড়াতে পারেন।</p>
+        <p>আপনার দৌড় <strong>Strava App</strong>-এর মাধ্যমে Record করতে হবে। দৌড় শেষ করার পর Strava-এর Run Activity Link আমাদের নির্ধারিত Submission Form-এর মাধ্যমে জমা দিতে হবে।</p>
+        <p>অর্থাৎ—<strong>আপনার Run, আপনার সময়, আপনার পথ; কিন্তু Challenge আমাদের সবার।</strong> 🖤</p>
         <hr>
-
         <h2>EVENT PERIOD</h2>
-
-        <p>
-          <strong>01 October – 31 October 2026</strong>
-        </p>
-
-        <p>
-          এই এক মাসের মধ্যে আপনার সুবিধামতো যেকোনো দিনে আপনার নির্বাচিত
-          Distance সম্পন্ন করতে পারবেন।
-        </p>
-
-        <p>
-          <strong>Location:</strong> Virtual — Run Anywhere, Anytime
-        </p>
-
-        <p>
-          <strong>Registration Opens:</strong> 10 May 2026
-        </p>
-
+        <p><strong>01 October – 31 October 2026</strong></p>
+        <p>এই এক মাসের মধ্যে আপনার সুবিধামতো যেকোনো দিনে আপনার নির্বাচিত Distance সম্পন্ন করতে পারবেন।</p>
+        <p><strong>Location:</strong> Virtual — Run Anywhere, Anytime</p>
+        <p><strong>Registration Opens:</strong> 10 May 2026</p>
         <hr>
-
-        <h2> RUN CATEGORIES</h2>
-
+        <h2>RUN CATEGORIES</h2>
         <ul>
           <li><strong>3.1 KM — Silver</strong></li>
           <li><strong>6.66 KM — Golden</strong></li>
           <li><strong>13 KM — Black</strong></li>
         </ul>
-
-        <p>
-          আপনার সক্ষমতা ও প্রস্তুতি অনুযায়ী যেকোনো একটি Category নির্বাচন করে
-          Challenge সম্পন্ন করুন।
-        </p>
-
+        <p>আপনার সক্ষমতা ও প্রস্তুতি অনুযায়ী যেকোনো একটি Category নির্বাচন করে Challenge সম্পন্ন করুন।</p>
         <hr>
-
-        <h2> REGISTRATION FEE</h2>
-
-        <p>
-          <strong>Regular Category:</strong> 649 BDT
-          <br>
-          <small>(Courier Charge প্রযোজ্য)</small>
-        </p>
-
-        <p>
-          <strong>Student Category:</strong> 599 BDT
-          <br>
-          <small>(Courier Charge প্রযোজ্য)</small>
-        </p>
-
+        <h2>REGISTRATION FEE</h2>
+        <p><strong>Regular Category:</strong> 649 BDT <br><small>(Courier Charge প্রযোজ্য)</small></p>
+        <p><strong>Student Category:</strong> 599 BDT <br><small>(Courier Charge প্রযোজ্য)</small></p>
         <hr>
-
-        <h2> কীভাবে অংশগ্রহণ করবেন?</h2>
-
+        <h2>কীভাবে অংশগ্রহণ করবেন?</h2>
         <h3>১️ Registration করুন</h3>
-
-        <p>
-          নির্ধারিত সময়ের মধ্যে আপনার পছন্দের Run Category নির্বাচন করে
-          Registration সম্পন্ন করুন।
-        </p>
-
+        <p>নির্ধারিত সময়ের মধ্যে আপনার পছন্দের Run Category নির্বাচন করে Registration সম্পন্ন করুন।</p>
         <h3>২️ E-BIB সংগ্রহ করুন</h3>
-
-        <p>
-          Event-এর আগে আপনার <strong>Official E-BIB Number</strong>
-          ই-মেইলের মাধ্যমে পাঠিয়ে দেওয়া হবে।
-        </p>
-
+        <p>Event-এর আগে আপনার <strong>Official E-BIB Number</strong> ই-মেইলের মাধ্যমে পাঠিয়ে দেওয়া হবে।</p>
         <h3>৩️ আপনার Run সম্পন্ন করুন</h3>
-
-        <p>
-          <strong>01 October – 31 October 2026</strong>-এর মধ্যে আপনার
-          সুবিধামতো যেকোনো দিন ও সময়ে নির্বাচিত Distance সম্পন্ন করুন।
-        </p>
-
+        <p><strong>01 October – 31 October 2026</strong>-এর মধ্যে আপনার সুবিধামতো যেকোনো দিন ও সময়ে নির্বাচিত Distance সম্পন্ন করুন।</p>
         <h3>৪️ Strava দিয়ে Run Record করুন</h3>
-
-        <p>
-          আপনার পুরো Run অবশ্যই <strong>Strava App</strong> ব্যবহার করে
-          Record করতে হবে, যাতে Distance, Time এবং অন্যান্য Run Data
-          সংরক্ষিত থাকে।
-        </p>
-
+        <p>আপনার পুরো Run অবশ্যই <strong>Strava App</strong> ব্যবহার করে Record করতে হবে, যাতে Distance, Time এবং অন্যান্য Run Data সংরক্ষিত থাকে।</p>
         <h3>৫️ Run Submission করুন</h3>
-
-        <p>
-          Run শেষ করার পর আপনার <strong>Strava Activity Link</strong> এবং
-          প্রয়োজনীয় তথ্য Official Submission Form-এর মাধ্যমে জমা দিন।
-        </p>
-
-        <p>
-          <strong>Submission Form-এর Link আপনার ই-মেইলে পাঠিয়ে দেওয়া হবে।</strong>
-        </p>
-
-        <h3>৬️ Verification শেষে Finisher হোন! </h3>
-
-        <p>
-          আপনার Run সফলভাবে সম্পন্ন ও যাচাই হওয়ার পর আপনি পাবেন আপনার
-          <strong>Finisher Rewards</strong>।
-        </p>
-
+        <p>Run শেষ করার পর আপনার <strong>Strava Activity Link</strong> এবং প্রয়োজনীয় তথ্য Official Submission Form-এর মাধ্যমে জমা দিন। <strong>Submission Form-এর Link আপনার ই-মেইলে পাঠিয়ে দেওয়া হবে।</strong></p>
+        <h3>৬️ Verification শেষে Finisher হোন!</h3>
+        <p>আপনার Run সফলভাবে সম্পন্ন ও যাচাই হওয়ার পর আপনি পাবেন আপনার <strong>Finisher Rewards</strong>।</p>
         <hr>
-
-        <h2> FINISHERS-দের জন্য থাকছে</h2>
-
+        <h2>FINISHERS-দের জন্য থাকছে</h2>
         <ul>
-          <li> Exclusive <strong>China Finisher Medal</strong></li>
-          <li> <strong>Surprise Gift</strong></li>
-          <li> <strong>Personalized E-Certificate</strong></li>
-          <li> Official <strong>E-BIB Number</strong></li>
+          <li>Exclusive <strong>China Finisher Medal</strong></li>
+          <li><strong>Surprise Gift</strong></li>
+          <li><strong>Personalized E-Certificate</strong></li>
+          <li>Official <strong>E-BIB Number</strong></li>
         </ul>
-
-        <p>
-          অর্থাৎ, শুধু দৌড় নয়—আপনার এই অর্জনকে স্মরণীয় করে রাখার জন্য
-          থাকছে বিশেষ Finisher Recognition।
-        </p>
-
+        <p>অর্থাৎ, শুধু দৌড় নয়—আপনার এই অর্জনকে স্মরণীয় করে রাখার জন্য থাকছে বিশেষ Finisher Recognition।</p>
         <hr>
-
-        <h2> আপনার Run-এর মুহূর্ত শেয়ার করুন!</h2>
-
-        <p>
-          দৌড়ের সময় আপনার ছবি তুলুন, আপনার Running Journey শেয়ার করুন
-          এবং আমাদের Community-এর সাথে যুক্ত থাকুন।
-        </p>
-
-        <p>
-          আপনার Run<br>
-          আপনার Story<br>
-          আপনার Achievement
-        </p>
-
-        <p>
-          <strong>হ্যাশট্যাগ ব্যবহার করুন:</strong>
-        </p>
-
-        <p>
-          <strong>#RavenXBD</strong><br>
-          <strong>#ShadowSprintRun2026</strong><br>
-          <strong>#RavenXBangladesh</strong>
-        </p>
-
+        <h2>আপনার Run-এর মুহূর্ত শেয়ার করুন!</h2>
+        <p>দৌড়ের সময় আপনার ছবি তুলুন, আপনার Running Journey শেয়ার করুন এবং আমাদের Community-এর সাথে যুক্ত থাকুন।</p>
+        <p>আপনার Run<br>আপনার Story<br>আপনার Achievement</p>
+        <p><strong>হ্যাশট্যাগ ব্যবহার করুন:</strong></p>
+        <p><strong>#RavenXBD</strong><br><strong>#ShadowSprintRun2026</strong><br><strong>#RavenXBangladesh</strong></p>
         <hr>
-
-        <h2> CONTACT INFORMATION</h2>
-
-        <p>
-          <strong>Organized by:</strong> RavenX Bangladesh
-        </p>
-
-        <p>
-          <strong>Email:</strong>
-          <a href="mailto:ravenxbdofficial@gmail.com">
-            ravenxbdofficial@gmail.com
-          </a>
-        </p>
-
-        <p>
-          <strong>WhatsApp/Call:</strong> 01805749874
-        </p>
-
-        <p>
-          <strong>Facebook:</strong>
-          <a href="https://www.facebook.com/ravenxofficialbd">
-            https://www.facebook.com/<br>
-            ravenxofficialbd
-          </a>
-        </p>
-
+        <h2>CONTACT INFORMATION</h2>
+        <p><strong>Organized by:</strong> RavenX Bangladesh</p>
+        <p><strong>Email:</strong> <a href="mailto:ravenxbdofficial@gmail.com">ravenxbdofficial@gmail.com</a></p>
+        <p><strong>WhatsApp/Call:</strong> 01805749874</p>
+        <p><strong>Facebook:</strong> <a href="https://www.facebook.com/ravenxofficialbd">https://www.facebook.com/<br>ravenxofficialbd</a></p>
         <hr>
-
-        <p>
-          🏃 <strong>See you on the road!</strong>
-        </p>
-
-        <p>
-          <strong>RavenX Bangladesh</strong>
-        </p>
-
+        <p>🏃 <strong>See you on the road!</strong></p>
+        <p><strong>RavenX Bangladesh</strong></p>
       </div>
+    </div>
 
-      <div class="row">
-
-        <div class="col">
-          <label>
-            <i class="fas fa-user"></i> Name
-          </label>
-
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            required
-          >
-        </div>
-
-        <div class="col">
-          <label>
-            <i class="fas fa-envelope"></i> Email Address
-          </label>
-
-          <input
-            type="email"
-            name="email"
-            placeholder="you@email.com"
-            required
-          >
-        </div>
-
+    <!-- name / email -->
+    <div class="row">
+      <div class="col">
+        <label><i class="fas fa-user"></i> Name</label>
+        <input type="text" name="name" placeholder="Full Name" required>
       </div>
-
-      <div class="row">
-
-        <div class="col">
-          <label>
-            <i class="fas fa-phone"></i> Phone / WhatsApp
-          </label>
-
-          <input
-            type="tel"
-            name="phone"
-            placeholder="+880 1XXXXXXXXX"
-            required
-          >
-        </div>
-
-        <div class="col">
-
-          <label>
-            <i class="fas fa-tag"></i> Category
-          </label>
-
-          <div class="category-options">
-
-            <label class="category-option" id="studentLabel">
-              <input
-                type="radio"
-                name="category"
-                value="student"
-                id="studentRadio"
-                style="display:none;"
-              >
-              Student
-            </label>
-
-            <label class="category-option" id="regularLabel">
-
-              <input
-                type="radio"
-                name="category"
-                value="regular"
-                id="regularRadio"
-                style="display:none;"
-                checked
-              >
-
-              Regular
-
-            </label>
-
-          </div>
-
-          <div style="margin-top:10px;">
-
-            <span class="price-display" id="priceBox">
-              ৳ 649
-            </span>
-
-            <span style="color:#777; font-size:0.9rem; margin-left:10px;">
-              Registration Fee
-            </span>
-
-          </div>
-
-        </div>
-
+      <div class="col">
+        <label><i class="fas fa-envelope"></i> Email Address</label>
+        <input type="email" name="email" placeholder="you@email.com" required>
       </div>
+    </div>
 
-      <!-- Student ID Box -->
-      <div id="studentIdBox">
-
-        <label>
-          <i class="fas fa-id-card"></i> Student ID Card
-        </label>
-
-        <input
-          type="file"
-          name="student_id"
-          id="studentIdInput"
-          accept="image/*"
-        >
-
-        <p style="color:#888; font-size:0.85rem; margin-top:6px;">
-          Upload your student ID card image
-        </p>
-
+    <!-- phone / category (student/regular) + price -->
+    <div class="row">
+      <div class="col">
+        <label><i class="fas fa-phone"></i> Phone / WhatsApp</label>
+        <input type="tel" name="phone" placeholder="+880 1XXXXXXXXX" required>
       </div>
+         <!-- ===== GENDER + DISTANCE DROPDOWN (under gender) ===== -->
+    <div class="row">
+      <div class="col">
+        <label><i class="fas fa-venus-mars"></i> Gender</label>
+        <select name="gender" required>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
 
-      <div class="row">
-
-        <div class="col">
-
-          <label>
-            <i class="fas fa-venus-mars"></i> Gender
-          </label>
-
-          <select name="gender" required>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
+        <!-- DISTANCE DROPDOWN placed under gender -->
+        <div class="distance-dropdown-wrapper">
+          <span><i class="fas fa-flag-checkered"></i> Distance:</span>
+          <select id="categoryDropdown">
+            <option value="3.1km">3.1 KM</option>
+            <option value="6.66km">6.66 KM</option>
+            <option value="13km">13 KM</option>
           </select>
-
         </div>
-
-        <div class="col">
-
-          <label>
-            <i class="fas fa-credit-card"></i> Payment Method
-          </label>
-
-          <div class="payment-method">
-
-            <label class="pay-option active" id="bkashLabel">
-              <input
-                type="radio"
-                name="payment_method"
-                value="Bkash"
-                style="display:none;"
-                checked
-              >
-              Bkash
-            </label>
-
-            <label class="pay-option" id="nagadLabel">
-              <input
-                type="radio"
-                name="payment_method"
-                value="Nagad"
-                style="display:none;"
-              >
-              Nagad
-            </label>
-
-            <label class="pay-option" id="rocketLabel">
-              <input
-                type="radio"
-                name="payment_method"
-                value="Rocket"
-                style="display:none;"
-              >
-              Rocket
-            </label>
-
-          </div>
-
-          <!-- Payment number display -->
-          <div id="paymentNumberBox" class="pay-number-box">
-
-            <span
-              class="number"
-              id="payNumberDisplay"
-            >
-              01805749874 (Payment)
-            </span>
-
-            <button
-              type="button"
-              class="copy-btn"
-              id="copyPayBtn"
-            >
-              <i class="fas fa-copy"></i> Copy
-            </button>
-
-          </div>
-
-        </div>
-
       </div>
-
-      <div class="row">
-
-        <div class="col">
-
-          <label>
-            <i class="fas fa-mobile-alt"></i> Your Payment Number
+      <div class="col">
+        <label><i class="fas fa-tag"></i> Category</label>
+        <div class="category-options">
+          <label class="category-option" id="studentLabel">
+            <input type="radio" name="category" value="student" id="studentRadio" style="display:none;">
+            Student
           </label>
-
-          <input
-            type="text"
-            name="payment_number"
-            placeholder="01XXXXXXXXX"
-            required
-          >
-
-        </div>
-
-        <div class="col">
-
-          <label>
-            <i class="fas fa-exchange-alt"></i> Transaction ID
+          <label class="category-option" id="regularLabel">
+            <input type="radio" name="category" value="regular" id="regularRadio" style="display:none;" checked>
+            Regular
           </label>
-
-          <input
-            type="text"
-            name="trx_id"
-            placeholder="TXN..."
-            required
-          >
-
         </div>
-
+        <div style="margin-top:10px;">
+          <span class="price-display" id="priceBox">৳ 649</span>
+          <span style="color:#777; font-size:0.9rem; margin-left:10px;">Registration Fee</span>
+        </div>
       </div>
+    </div>
 
-      <button
-        type="submit"
-        class="btn-submit"
-      >
-        <i class="fas fa-check-circle"></i>
-        Register Now
-      </button>
+    <!-- student ID box -->
+    <div id="studentIdBox">
+      <label><i class="fas fa-id-card"></i> Student ID Card</label>
+      <input type="file" name="student_id" id="studentIdInput" accept="image/*">
+      <p style="color:#888; font-size:0.85rem; margin-top:6px;">Upload your student ID card image</p>
+    </div>
 
-      <div class="footer-note">
-        Thank you for being with RavenX Bangladesh
+
+      <!-- payment method -->
+      <div class="col">
+        <label><i class="fas fa-credit-card"></i> Payment Method</label>
+        <div class="payment-method">
+          <label class="pay-option active" id="bkashLabel">
+            <input type="radio" name="payment_method" value="Bkash" style="display:none;" checked> Bkash
+          </label>
+          <label class="pay-option" id="nagadLabel">
+            <input type="radio" name="payment_method" value="Nagad" style="display:none;"> Nagad
+          </label>
+          <label class="pay-option" id="rocketLabel">
+            <input type="radio" name="payment_method" value="Rocket" style="display:none;"> Rocket
+          </label>
+        </div>
+        <div id="paymentNumberBox" class="pay-number-box">
+          <span class="number" id="payNumberDisplay">01805749874 (Payment)</span>
+          <button type="button" class="copy-btn" id="copyPayBtn"><i class="fas fa-copy"></i> Copy</button>
+        </div>
       </div>
+    </div>
 
-    </form>
+    <!-- payment number / trx -->
+    <div class="row">
+      <div class="col">
+        <label><i class="fas fa-mobile-alt"></i> Your Payment Number</label>
+        <input type="text" name="payment_number" placeholder="01XXXXXXXXX" required>
+      </div>
+      <div class="col">
+        <label><i class="fas fa-exchange-alt"></i> Transaction ID</label>
+        <input type="text" name="trx_id" placeholder="TXN..." required>
+      </div>
+    </div>
 
-  </div>
+    <button type="submit" class="btn-submit"><i class="fas fa-check-circle"></i> Register Now</button>
+    <div class="footer-note">Thank you for being with RavenX Bangladesh</div>
+  </form>
+</div>
 
-  <script>
+<script>
+(function(){
 
-    (function(){
+  // ---- DESCRIPTION ACCORDION - FIXED ----
+  const descToggle = document.getElementById('descToggle');
+  const descBody = document.getElementById('descBody');
+  const descArrow = document.getElementById('descArrow');
 
-      // --------------------------------------------------
-      // DISTANCE SELECTION
-      // --------------------------------------------------
+  descToggle.addEventListener('click', function(e) {
+    descBody.classList.toggle('open');
+    descArrow.classList.toggle('open');
+  });
 
-      const distCards =
-        document.querySelectorAll('.distance-card');
+  // ---- DISTANCE CARDS + DROPDOWN (under gender) SYNC ----
+  const distRadios = document.querySelectorAll('input[name="distance"]');
+  const distCards = document.querySelectorAll('.distance-card');
+  const categoryDropdown = document.getElementById('categoryDropdown');
 
-      const distRadios =
-        document.querySelectorAll('input[name="distance"]');
-
-      function updateDistanceUI() {
-
-        distCards.forEach(card => {
-
-          card.classList.remove('selected');
-
-          const radio =
-            card.querySelector('input');
-
-          if (radio.checked) {
-            card.classList.add('selected');
-          }
-
-        });
-
+  function updateDistanceUI() {
+    distCards.forEach(card => {
+      card.classList.remove('selected');
+      const radio = card.querySelector('input');
+      if (radio.checked) {
+        card.classList.add('selected');
+        categoryDropdown.value = radio.value;
       }
+    });
+  }
 
-      distRadios.forEach(radio => {
+  distRadios.forEach(radio => {
+    radio.addEventListener('change', updateDistanceUI);
+  });
 
-        radio.addEventListener(
-          'change',
-          updateDistanceUI
-        );
-
-      });
-
-      distCards.forEach(card => {
-
-        card.addEventListener(
-          'click',
-          function(e) {
-
-            const radio =
-              this.querySelector('input');
-
-            radio.checked = true;
-
-            updateDistanceUI();
-
-          }
-        );
-
-      });
-
+  distCards.forEach(card => {
+    card.addEventListener('click', function(e) {
+      const radio = this.querySelector('input');
+      radio.checked = true;
       updateDistanceUI();
+    });
+  });
 
-
-      // --------------------------------------------------
-      // CATEGORY + PRICE
-      // --------------------------------------------------
-
-      const studentRadio =
-        document.getElementById('studentRadio');
-
-      const regularRadio =
-        document.getElementById('regularRadio');
-
-      const priceBox =
-        document.getElementById('priceBox');
-
-      const studentIdBox =
-        document.getElementById('studentIdBox');
-
-      const studentLabel =
-        document.getElementById('studentLabel');
-
-      const regularLabel =
-        document.getElementById('regularLabel');
-
-      const studentIdInput =
-        document.getElementById('studentIdInput');
-
-
-      function updateCategoryUI() {
-
-        if (studentRadio.checked) {
-
-          priceBox.innerText = '৳ 599';
-
-          studentIdBox.classList.add('show');
-
-          studentIdInput.setAttribute(
-            'required',
-            'required'
-          );
-
-          studentLabel.classList.add('selected');
-
-          regularLabel.classList.remove('selected');
-
-        } else {
-
-          priceBox.innerText = '৳ 649';
-
-          studentIdBox.classList.remove('show');
-
-          studentIdInput.removeAttribute('required');
-
-          regularLabel.classList.add('selected');
-
-          studentLabel.classList.remove('selected');
-
-        }
-
+  // dropdown (under gender) changes distance cards
+  categoryDropdown.addEventListener('change', function() {
+    const val = this.value;
+    distRadios.forEach(radio => {
+      if (radio.value === val) {
+        radio.checked = true;
       }
+    });
+    updateDistanceUI();
+  });
 
+  // initial sync
+  updateDistanceUI();
 
-      studentRadio.addEventListener(
-        'change',
-        updateCategoryUI
-      );
+  // ---- STUDENT / REGULAR CATEGORY ----
+  const studentRadio = document.getElementById('studentRadio');
+  const regularRadio = document.getElementById('regularRadio');
+  const priceBox = document.getElementById('priceBox');
+  const studentIdBox = document.getElementById('studentIdBox');
+  const studentLabel = document.getElementById('studentLabel');
+  const regularLabel = document.getElementById('regularLabel');
+  const studentIdInput = document.getElementById('studentIdInput');
 
-      regularRadio.addEventListener(
-        'change',
-        updateCategoryUI
-      );
+  function updateCategoryUI() {
+    if (studentRadio.checked) {
+      priceBox.innerText = '৳ 599';
+      studentIdBox.classList.add('show');
+      studentIdInput.setAttribute('required', 'required');
+      studentLabel.classList.add('selected');
+      regularLabel.classList.remove('selected');
+    } else {
+      priceBox.innerText = '৳ 649';
+      studentIdBox.classList.remove('show');
+      studentIdInput.removeAttribute('required');
+      regularLabel.classList.add('selected');
+      studentLabel.classList.remove('selected');
+    }
+  }
 
+  studentRadio.addEventListener('change', updateCategoryUI);
+  regularRadio.addEventListener('change', updateCategoryUI);
+  studentLabel.addEventListener('click', function(e) {
+    e.preventDefault();
+    studentRadio.checked = true;
+    updateCategoryUI();
+  });
+  regularLabel.addEventListener('click', function(e) {
+    e.preventDefault();
+    regularRadio.checked = true;
+    updateCategoryUI();
+  });
+  regularRadio.checked = true;
+  updateCategoryUI();
 
-      studentLabel.addEventListener(
-        'click',
-        function(e) {
+  // ---- PAYMENT NUMBER + COPY ----
+  const payNumberDisplay = document.getElementById('payNumberDisplay');
+  const copyBtn = document.getElementById('copyPayBtn');
+  const paymentDisplay = {
+    'Bkash': '01805749874 (Payment)',
+    'Nagad': '01687414286 (Send Money)',
+    'Rocket': '01624577374 (Send Money)'
+  };
+  const paymentRaw = {
+    'Bkash': '01805749874',
+    'Nagad': '01687414286',
+    'Rocket': '01624577374'
+  };
+  const payRadios = document.querySelectorAll('input[name="payment_method"]');
+  const payLabels = document.querySelectorAll('.pay-option');
 
-          e.preventDefault();
-
-          studentRadio.checked = true;
-
-          updateCategoryUI();
-
-        }
-      );
-
-
-      regularLabel.addEventListener(
-        'click',
-        function(e) {
-
-          e.preventDefault();
-
-          regularRadio.checked = true;
-
-          updateCategoryUI();
-
-        }
-      );
-
-
-      // Initialize regular category
-      regularRadio.checked = true;
-
-      updateCategoryUI();
-
-
-      // --------------------------------------------------
-      // PAYMENT NUMBER + COPY
-      // --------------------------------------------------
-
-      const payNumberDisplay =
-        document.getElementById(
-          'payNumberDisplay'
-        );
-
-      const copyBtn =
-        document.getElementById(
-          'copyPayBtn'
-        );
-
-
-      const paymentDisplay = {
-
-        'Bkash':
-          '01805749874 (Payment)',
-
-        'Nagad':
-          '01687414286 (Send Money)',
-
-        'Rocket':
-          '01624577374 (Send Money)'
-
-      };
-
-
-      const paymentRaw = {
-
-        'Bkash':
-          '01805749874',
-
-        'Nagad':
-          '01687414286',
-
-        'Rocket':
-          '01624577374'
-
-      };
-
-
-      const payRadios =
-        document.querySelectorAll(
-          'input[name="payment_method"]'
-        );
-
-      const payLabels =
-        document.querySelectorAll(
-          '.pay-option'
-        );
-
-
-      function updatePaymentUI() {
-
-        payLabels.forEach(label => {
-
-          label.classList.remove('active');
-
-          const radio =
-            label.querySelector('input');
-
-          if (radio.checked) {
-
-            label.classList.add('active');
-
-            const method =
-              radio.value;
-
-            payNumberDisplay.textContent =
-              paymentDisplay[method] ||
-              '01234567890 (Payment)';
-
-          }
-
-        });
-
+  function updatePaymentUI() {
+    payLabels.forEach(label => {
+      label.classList.remove('active');
+      const radio = label.querySelector('input');
+      if (radio.checked) {
+        label.classList.add('active');
+        payNumberDisplay.textContent = paymentDisplay[radio.value] || '01234567890 (Payment)';
       }
+    });
+  }
 
-
-      payRadios.forEach(radio => {
-
-        radio.addEventListener(
-          'change',
-          updatePaymentUI
-        );
-
-      });
-
-
-      payLabels.forEach(label => {
-
-        label.addEventListener(
-          'click',
-          function(e) {
-
-            const radio =
-              this.querySelector('input');
-
-            radio.checked = true;
-
-            updatePaymentUI();
-
-          }
-        );
-
-      });
-
-
-      // Copy payment number
-      copyBtn.addEventListener(
-        'click',
-        function() {
-
-          let currentMethod = 'Bkash';
-
-          payRadios.forEach(radio => {
-
-            if (radio.checked) {
-              currentMethod = radio.value;
-            }
-
-          });
-
-          const numberToCopy =
-            paymentRaw[currentMethod] ||
-            '01805749874';
-
-
-          if (
-            navigator.clipboard &&
-            navigator.clipboard.writeText
-          ) {
-
-            navigator.clipboard
-              .writeText(numberToCopy)
-              .then(() => {
-
-                alert(
-                  'Payment number copied: ' +
-                  numberToCopy
-                );
-
-              })
-              .catch(() => {
-
-                copyViaInput(numberToCopy);
-
-              });
-
-          } else {
-
-            copyViaInput(numberToCopy);
-
-          }
-
-        }
-      );
-
-
-      function copyViaInput(text) {
-
-        const tempInput =
-          document.createElement('input');
-
-        tempInput.value = text;
-
-        document.body.appendChild(
-          tempInput
-        );
-
-        tempInput.select();
-
-        document.execCommand('copy');
-
-        document.body.removeChild(
-          tempInput
-        );
-
-        alert(
-          'Payment number copied: ' +
-          text
-        );
-
-      }
-
-
-      // Default Bkash
-      const defaultPay =
-        document.querySelector(
-          'input[name="payment_method"][value="Bkash"]'
-        );
-
-      if (defaultPay) {
-
-        defaultPay.checked = true;
-
-        payNumberDisplay.textContent =
-          paymentDisplay['Bkash'];
-
-      }
-
+  payRadios.forEach(radio => {
+    radio.addEventListener('change', updatePaymentUI);
+  });
+  payLabels.forEach(label => {
+    label.addEventListener('click', function(e) {
+      const radio = this.querySelector('input');
+      radio.checked = true;
       updatePaymentUI();
+    });
+  });
 
+  copyBtn.addEventListener('click', function() {
+    let currentMethod = 'Bkash';
+    payRadios.forEach(radio => { if (radio.checked) currentMethod = radio.value; });
+    const numberToCopy = paymentRaw[currentMethod] || '01805749874';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(numberToCopy).then(() => {
+        alert('Payment number copied: ' + numberToCopy);
+      }).catch(() => { copyViaInput(numberToCopy); });
+    } else {
+      copyViaInput(numberToCopy);
+    }
+  });
 
-      // --------------------------------------------------
-      // META PIXEL COOKIE HELPER
-      // --------------------------------------------------
+  function copyViaInput(text) {
+    const tempInput = document.createElement('input');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    alert('Payment number copied: ' + text);
+  }
 
-      function getCookie(name) {
+  const defaultPay = document.querySelector('input[name="payment_method"][value="Bkash"]');
+  if (defaultPay) { defaultPay.checked = true; payNumberDisplay.textContent = paymentDisplay['Bkash']; }
+  updatePaymentUI();
 
-        const match =
-          document.cookie.match(
-            new RegExp(
-              '(^| )' +
-              name +
-              '=([^;]+)'
-            )
-          );
+  // ---- META PIXEL COOKIE HELPER ----
+  function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  }
 
-        return match
-          ? decodeURIComponent(match[2])
-          : null;
+  // ---- FORM SUBMIT ----
+  document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.querySelector('input[name="name"]').value.trim();
+    if (!name) { alert('Please enter your name.'); return; }
+    if (studentRadio.checked && !studentIdInput.files.length) { alert('Please upload your student ID card.'); return; }
+    const email = document.querySelector('input[name="email"]').value.trim();
+    if (!email) { alert('Please enter your email.'); return; }
+    const distance = document.querySelector('input[name="distance"]:checked').value;
+    const category = studentRadio.checked ? 'student' : 'regular';
+    const gender = document.querySelector('select[name="gender"]').value;
+    const payment_method = document.querySelector('input[name="payment_method"]:checked').value;
+    const payment_number = document.querySelector('input[name="payment_number"]').value.trim();
+    const trx_id = document.querySelector('input[name="trx_id"]').value.trim();
+    const registration_fee = studentRadio.checked ? 599 : 649;
+    const submitButton = document.querySelector('.btn-submit');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
 
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, email,
+          phone: document.querySelector('input[name="phone"]').value.trim(),
+          distance, category, gender, payment_method, payment_number, trx_id, registration_fee,
+          fbp: getCookie('_fbp'),
+          fbc: getCookie('_fbc'),
+          event_source_url: window.location.href
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        if (typeof fbq === 'function') {
+          fbq('track', 'CompleteRegistration', {
+            value: Number(registration_fee) || 0,
+            currency: 'BDT'
+          }, { eventID: String(data.registration_id) });
+        }
+        alert(`✅ Registration Successful!\n\nName: ${name}\nDistance: ${distance}\nCategory: ${category}\nPayment: ${payment_method}\n\nRegistration ID: ${data.registration_id}\n\nThank you! See you there!`);
+        document.getElementById('registrationForm').reset();
+        regularRadio.checked = true;
+        updateCategoryUI();
+        updatePaymentUI();
+        document.querySelector('input[name="distance"][value="3.1km"]').checked = true;
+        updateDistanceUI();
+        categoryDropdown.value = '3.1km';
+      } else {
+        alert('❌ Registration failed.\n\n' + (data.message || 'Please try again.'));
       }
-
-
-      // --------------------------------------------------
-      // FORM SUBMIT
-      // --------------------------------------------------
-
-      document
-        .getElementById('registrationForm')
-        .addEventListener(
-          'submit',
-          async function(e) {
-
-            e.preventDefault();
-
-
-            const name =
-              document.querySelector(
-                'input[name="name"]'
-              ).value.trim();
-
-
-            if (!name) {
-
-              alert(
-                'Please enter your name.'
-              );
-
-              return;
-
-            }
-
-
-            if (
-              studentRadio.checked &&
-              !studentIdInput.files.length
-            ) {
-
-              alert(
-                'Please upload your student ID card.'
-              );
-
-              return;
-
-            }
-
-
-            const email =
-              document.querySelector(
-                'input[name="email"]'
-              ).value.trim();
-
-
-            if (!email) {
-
-              alert(
-                'Please enter your email.'
-              );
-
-              return;
-
-            }
-
-
-            const distance =
-              document.querySelector(
-                'input[name="distance"]:checked'
-              ).value;
-
-
-            const category =
-              studentRadio.checked
-                ? 'student'
-                : 'regular';
-
-
-            const gender =
-              document.querySelector(
-                'select[name="gender"]'
-              ).value;
-
-
-            const payment_method =
-              document.querySelector(
-                'input[name="payment_method"]:checked'
-              ).value;
-
-
-            const payment_number =
-              document.querySelector(
-                'input[name="payment_number"]'
-              ).value.trim();
-
-
-            const trx_id =
-              document.querySelector(
-                'input[name="trx_id"]'
-              ).value.trim();
-
-
-            const registration_fee =
-              studentRadio.checked
-                ? 599
-                : 649;
-
-
-            const submitButton =
-              document.querySelector(
-                '.btn-submit'
-              );
-
-
-            submitButton.disabled = true;
-
-            submitButton.innerHTML =
-              '<i class="fas fa-spinner fa-spin"></i> Registering...';
-
-
-            try {
-
-              const response =
-                await fetch(
-                  '/api/register',
-                  {
-                    method: 'POST',
-
-                    headers: {
-                      'Content-Type':
-                        'application/json'
-                    },
-
-                    body: JSON.stringify({
-
-                      name,
-
-                      email,
-
-                      phone:
-                        document.querySelector(
-                          'input[name="phone"]'
-                        ).value.trim(),
-
-                      distance,
-
-                      category,
-
-                      gender,
-
-                      payment_method,
-
-                      payment_number,
-
-                      trx_id,
-
-                      registration_fee,
-
-                      // Meta Pixel / CAPI data
-                      fbp:
-                        getCookie('_fbp'),
-
-                      fbc:
-                        getCookie('_fbc'),
-
-                      event_source_url:
-                        window.location.href
-
-                    })
-                  }
-                );
-
-
-              const data =
-                await response.json();
-
-
-              if (data.success) {
-
-                // --------------------------------------------------
-                // META PIXEL - COMPLETE REGISTRATION
-                // --------------------------------------------------
-                // Same registration ID is sent to backend CAPI
-                // so Meta can deduplicate browser + server events.
-
-                if (
-                  typeof fbq === 'function'
-                ) {
-
-                  fbq(
-                    'track',
-                    'CompleteRegistration',
-                    {
-                      value:
-                        Number(
-                          registration_fee
-                        ) || 0,
-
-                      currency: 'BDT'
-                    },
-                    {
-                      eventID:
-                        String(
-                          data.registration_id
-                        )
-                    }
-                  );
-
-                }
-
-
-                alert(
-
-                  `✅ Registration Successful!\n\n` +
-
-                  `Name: ${name}\n` +
-
-                  `Distance: ${distance}\n` +
-
-                  `Category: ${category}\n` +
-
-                  `Payment: ${payment_method}\n\n` +
-
-                  `Registration ID: ${data.registration_id}\n\n` +
-
-                  `Thank you! See you there!`
-
-                );
-
-
-                document
-                  .getElementById(
-                    'registrationForm'
-                  )
-                  .reset();
-
-
-                regularRadio.checked = true;
-
-                updateCategoryUI();
-
-                updatePaymentUI();
-
-                updateDistanceUI();
-
-              } else {
-
-                alert(
-
-                  '❌ Registration failed.\n\n' +
-
-                  (
-                    data.message ||
-                    'Please try again.'
-                  )
-
-                );
-
-              }
-
-
-            } catch (error) {
-
-              console.error(
-                'Submit Error:',
-                error
-              );
-
-
-              alert(
-
-                '❌ Could not connect to the server.\n\n' +
-
-                'Please make sure the RavenX backend is running.'
-
-              );
-
-            } finally {
-
-              submitButton.disabled = false;
-
-              submitButton.innerHTML =
-                '<i class="fas fa-check-circle"></i> Register Now';
-
-            }
-
-          }
-        );
-
-    })();
-
-  </script>
-
+    } catch (error) {
+      console.error('Submit Error:', error);
+      alert('❌ Could not connect to the server.\n\nPlease make sure the RavenX backend is running.');
+    } finally {
+      submitButton.disabled = false;
+      submitButton.innerHTML = '<i class="fas fa-check-circle"></i> Register Now';
+    }
+  });
+
+})();
+</script>
 </body>
 </html>
