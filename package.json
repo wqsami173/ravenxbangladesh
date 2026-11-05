@@ -1,28 +1,33 @@
 {
-  "name": "ravenx",
+  "name": "ravenx-event-platform",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "RavenX event registration, participant, and admin platform",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "migrate": "node scripts/migrate.js",
+    "admin:promote": "node scripts/promote-admin.js",
+    "test": "node --test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/wqsami173/ravenxbangladesh.git"
+  "engines": {
+    "node": ">=20"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/wqsami173/ravenxbangladesh/issues"
-  },
-  "homepage": "https://github.com/wqsami173/ravenxbangladesh#readme",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "helmet": "^8.0.0",
     "multer": "^2.3.0",
-    "pg": "^8.23.0"
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.0",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
   }
 }
