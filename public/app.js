@@ -27,6 +27,7 @@
   const toast = document.getElementById('toast');
   let user = null;
   let csrfToken = null;
+  let passwordResetEmail = '';
   let toastTimer;
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -279,9 +280,16 @@
   function authPage(mode) {
     const signup = mode === 'signup';
     const reset = mode === 'reset-password';
-    const title = signup ? 'Create your account' : reset ? 'Set a new password' : 'Welcome back';
-    const form = reset ? `<form data-form="reset-password"><input type="hidden" name="token"><div class="form-grid"><div class="form-field full"><label for="new-password">New password</label><input class="input" id="new-password" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div><div class="form-field full"><label for="confirm-password">Confirm password</label><input class="input" id="confirm-password" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div></div><button class="button button-primary auth-submit">Update password</button><div class="error-text" data-error></div></form>` : signup ? `<form data-form="signup"><div class="form-grid"><div class="form-field full"><label for="name">Full name</label><input class="input" id="name" name="name" autocomplete="name" minlength="2" maxlength="100" required></div><div class="form-field full"><label for="email">Email address</label><input class="input" id="email" name="email" type="email" autocomplete="email" maxlength="254" required></div><div class="form-field full"><label for="phone">Phone number</label><input class="input" id="phone" name="phone" type="tel" autocomplete="tel" minlength="6" maxlength="32" required></div><div class="form-field"><label for="password">Password</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div><div class="form-field"><label for="confirmPassword">Confirm password</label><input class="input" id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div></div><button class="button button-primary auth-submit">Create account</button><div class="error-text" data-error></div></form>` : `<form data-form="login"><div class="form-grid"><div class="form-field full"><label for="email">Email address</label><input class="input" id="email" name="email" type="email" autocomplete="email" required></div><div class="form-field full"><label for="password">Password</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required minlength="8"></div></div><label class="checkbox-row"><input type="checkbox" name="remember"> Keep me signed in on this device</label><button class="button button-primary auth-submit">Sign in</button><div class="error-text" data-error></div><div class="auth-links"><button class="text-link" type="button" data-action="forgot-password">Forgot password?</button><a href="#/signup">Create an account</a></div></form>`;
-    layout(`<section class="auth-page"><div class="auth-card"><span class="eyebrow">RavenX account</span><h1>${title}</h1><p>${signup ? 'Join the community and manage your event registrations.' : reset ? 'Choose a password of at least 8 characters.' : 'Sign in to access your events, BIB, and certificates.'}</p>${form}${!signup && !reset ? '<p class="auth-switch">New to RavenX? <a href="#/signup">Create an account</a></p>' : ''}</div></section>`, '/login');
+    const forgot = mode === 'forgot-password';
+    const title = signup ? 'Create your account' : reset ? 'Set a new password' : forgot ? 'Reset your password' : 'Welcome back';
+    const requestCodeForm = `<form data-form="password-reset-request"><div class="form-grid"><div class="form-field full"><label for="reset-email">Email address</label><input class="input" id="reset-email" name="email" type="email" autocomplete="email" maxlength="254" required></div></div><button class="button button-primary auth-submit" type="submit">Email me a reset code</button><div class="error-text" data-error></div><p class="auth-switch"><a href="#/login">Back to sign in</a></p></form>`;
+    const verifyCodeForm = `<form data-form="password-reset-verify"><input type="hidden" name="email" value="${esc(passwordResetEmail)}"><div class="notice">If this email has a RavenX account, we sent a six-digit code. It expires in 10 minutes. Check your spam folder too.</div><div class="form-grid"><div class="form-field full"><label for="reset-code">Email code</label><input class="input reset-code-input" id="reset-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required></div><div class="form-field full"><label for="reset-new-password">New password</label><input class="input" id="reset-new-password" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div><div class="form-field full"><label for="reset-confirm-password">Confirm new password</label><input class="input" id="reset-confirm-password" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div></div><button class="button button-primary auth-submit" type="submit">Verify code and update password</button><div class="error-text" data-error></div><div class="auth-links"><button class="text-link" type="button" data-action="reset-use-different-email">Use a different email</button><a href="#/login">Back to sign in</a></div></form>`;
+    const legacyResetForm = `<form data-form="reset-password"><input type="hidden" name="token"><div class="form-grid"><div class="form-field full"><label for="new-password">New password</label><input class="input" id="new-password" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div><div class="form-field full"><label for="confirm-password">Confirm password</label><input class="input" id="confirm-password" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div></div><button class="button button-primary auth-submit">Update password</button><div class="error-text" data-error></div></form>`;
+    const signupForm = `<form data-form="signup"><div class="form-grid"><div class="form-field full"><label for="name">Full name</label><input class="input" id="name" name="name" autocomplete="name" minlength="2" maxlength="100" required></div><div class="form-field full"><label for="email">Email address</label><input class="input" id="email" name="email" type="email" autocomplete="email" maxlength="254" required></div><div class="form-field full"><label for="phone">Phone number</label><input class="input" id="phone" name="phone" type="tel" autocomplete="tel" minlength="6" maxlength="32" required></div><div class="form-field"><label for="password">Password</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div><div class="form-field"><label for="confirmPassword">Confirm password</label><input class="input" id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div></div><button class="button button-primary auth-submit">Create account</button><div class="error-text" data-error></div></form>`;
+    const loginForm = `<form data-form="login"><div class="form-grid"><div class="form-field full"><label for="email">Email address</label><input class="input" id="email" name="email" type="email" autocomplete="email" required></div><div class="form-field full"><label for="password">Password</label><input class="input" id="password" name="password" type="password" autocomplete="current-password" required minlength="8"></div></div><label class="checkbox-row"><input type="checkbox" name="remember"> Keep me signed in on this device</label><button class="button button-primary auth-submit">Sign in</button><div class="error-text" data-error></div><div class="auth-links"><a href="#/forgot-password">Forgot password?</a><a href="#/signup">Create an account</a></div></form>`;
+    const form = reset ? legacyResetForm : forgot ? (passwordResetEmail ? verifyCodeForm : requestCodeForm) : signup ? signupForm : loginForm;
+    const subtitle = signup ? 'Join the community and manage your event registrations.' : reset ? 'Choose a password of at least 8 characters.' : forgot ? 'We’ll send a one-time code to your email so you can choose a new password.' : 'Sign in to access your events, BIB, and certificates.';
+    layout(`<section class="auth-page"><div class="auth-card"><span class="eyebrow">RavenX account</span><h1>${title}</h1><p>${subtitle}</p>${form}${!signup && !reset && !forgot ? '<p class="auth-switch">New to RavenX? <a href="#/signup">Create an account</a></p>' : ''}</div></section>`, '/login');
     if (reset) app.querySelector('[name="token"]').value = routeInfo().query.get('token') || '';
   }
 
@@ -545,12 +553,14 @@
 
   async function render() {
     const { path } = routeInfo();
+    if (path !== '/forgot-password') passwordResetEmail = '';
     if (path === '/' || path === '/home') return renderHome();
     if (path === '/events') return renderEvents();
     if (path.startsWith('/events/')) return renderEvent();
     if (path === '/shop') return renderShop();
     if (path === '/signup') return authPage('signup');
     if (path === '/login') return authPage('login');
+    if (path === '/forgot-password') return authPage('forgot-password');
     if (path === '/reset-password') return authPage('reset-password');
     if (path === '/dashboard') return renderDashboard();
     if (path === '/my-events') return renderMyEvents();
@@ -665,6 +675,18 @@
         const result = await api('/api/auth/login', { method: 'POST', body: { email: values.get('email'), password: values.get('password'), remember: values.get('remember') === 'on' } });
         user = result.user; csrfToken = result.csrfToken; notify('Signed in successfully.'); location.hash = user.role === 'admin' ? '#/admin' : '#/dashboard'; return;
       }
+      if (formType === 'password-reset-request') {
+        const email = String(values.get('email') || '').trim();
+        await api('/api/auth/password-reset/request', { method: 'POST', body: { email } });
+        passwordResetEmail = email;
+        authPage('forgot-password');
+        return;
+      }
+      if (formType === 'password-reset-verify') {
+        await api('/api/auth/password-reset/verify-code', { method: 'POST', body: Object.fromEntries(values) });
+        passwordResetEmail = '';
+        notify('Password updated. Sign in with your new password.'); location.hash = '#/login'; return;
+      }
       if (formType === 'reset-password') {
         await api('/api/auth/password-reset/confirm', { method: 'POST', body: Object.fromEntries(values) });
         notify('Password updated. Sign in with your new password.'); location.hash = '#/login'; return;
@@ -747,11 +769,9 @@
       await renderShop();
       return;
     }
-    if (name === 'forgot-password') {
-      const email = window.prompt('Enter the email address on your RavenX account:');
-      if (!email) return;
-      try { await api('/api/auth/password-reset/request', { method: 'POST', body: { email } }); notify('If the account exists, a password setup link will be sent.'); }
-      catch (error) { notify(error.message); }
+    if (name === 'reset-use-different-email') {
+      passwordResetEmail = '';
+      authPage('forgot-password');
       return;
     }
     if (name === 'copy-payment') {

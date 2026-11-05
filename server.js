@@ -17,7 +17,7 @@ const { pool, withTransaction, requireDatabase, hasDatabaseUrl } = require('./sr
 const { enqueueEmail, processOutbox, ADMIN_EMAIL, emailConfigured } = require('./src/email');
 const { uploadBuffer, deleteAsset, storageConfigured } = require('./src/storage');
 const {
-  DISTANCES, bibPrefix, makeBibNumber, feeForEvent, detectImageMime, validateActivityUrl,
+  DISTANCES, bibPrefix, makeBibNumber, feeForEvent, detectImageMime, validateActivityUrl, hashPasswordResetCode,
   escapeXml, safeFilename, normalizeName, generateCertificateSvg
 } = require('./src/domain');
 const { makeShadowSprintBibSvg, makeShadowSprintCertificateSvg, rasterizePng } = require('./src/designs');
@@ -132,6 +132,13 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts. Try again later.' }
+});
+const passwordResetRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Try again later.' }
 });
 const writeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -686,8 +693,9 @@ app.post('/api/auth/login', authLimiter, asyncRoute(async (req, res) => {
   res.json({ user: safeUser(user), csrfToken: req.session.csrfToken });
 }));
 
-app.post('/api/auth/password-reset/request', authLimiter, asyncRoute(async (req, res) => {
+app.post('/api/auth/password-reset/request', passwordResetRequestLimiter, asyncRoute(async (req, res) => {
   if (!requireDatabase(res)) return;
+  const startedAt = Date.now();
   const parsed = z.object({ email: z.string().trim().email().max(254) }).safeParse(req.body);
   if (!parsed.success) return validationError(res, parsed);
   const userResult = await pool.query(
@@ -695,19 +703,86 @@ app.post('/api/auth/password-reset/request', authLimiter, asyncRoute(async (req,
     [parsed.data.email.toLowerCase()]
   );
   if (userResult.rowCount) {
-    const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await withTransaction(async (client) => {
-      await client.query(
-        "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1,$2,NOW()+INTERVAL '30 minutes')",
-        [userResult.rows[0].id, tokenHash]
+      const user = userResult.rows[0];
+      await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [user.id]);
+      const cooldown = await client.query(
+        "SELECT 1 FROM password_reset_tokens WHERE user_id=$1 AND created_at>NOW()-INTERVAL '1 minute' LIMIT 1",
+        [user.id]
       );
-      await enqueueEmail(client, userResult.rows[0].email, 'password_reset', {
-        resetUrl: FRONTEND_URL + '/#/reset-password?token=' + token
-      });
+      if (cooldown.rowCount) return;
+
+      await client.query(
+        'UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+        [user.id]
+      );
+      const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+      const tokenId = crypto.randomUUID();
+      const codeHash = hashPasswordResetCode(user.id, tokenId, code, SESSION_SECRET || 'development-only-password-reset-secret');
+      const token = await client.query(
+        "INSERT INTO password_reset_tokens (id,user_id,token_hash,expires_at,attempts) VALUES ($1,$2,$3,NOW()+INTERVAL '10 minutes',0) RETURNING id",
+        [tokenId, user.id, codeHash]
+      );
+      await enqueueEmail(client, user.email, 'password_reset_code', { code, tokenId: token.rows[0].id });
     });
   }
-  res.status(202).json({ message: 'If the account exists, a password setup link will be sent.' });
+  await new Promise((resolve) => setTimeout(resolve, Math.max(0, 250 - (Date.now() - startedAt))));
+  res.status(202).json({ message: 'If the account exists, a password reset code will be sent to its email address.' });
+}));
+
+app.post('/api/auth/password-reset/verify-code', authLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const parsed = z.object({
+    email: z.string().trim().email().max(254),
+    code: z.string().regex(/^\d{6}$/),
+    password: z.string().min(8).max(128),
+    confirmPassword: z.string().min(8).max(128)
+  }).refine((value) => value.password === value.confirmPassword, {
+    path: ['confirmPassword'], message: 'Passwords do not match.'
+  }).safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+
+  const userResult = await pool.query(
+    'SELECT id FROM users WHERE LOWER(email)=LOWER($1)',
+    [parsed.data.email.toLowerCase()]
+  );
+  if (!userResult.rowCount) {
+    return res.status(400).json({ error: 'The code is invalid, expired, or already used. Request a new code and try again.' });
+  }
+
+  const userId = userResult.rows[0].id;
+  const updated = await withTransaction(async (client) => {
+    const token = await client.query(
+      'SELECT id,token_hash,attempts FROM password_reset_tokens ' +
+      'WHERE user_id=$1 AND used_at IS NULL AND expires_at>NOW() AND attempts<5 ' +
+      'ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+      [userId]
+    );
+    if (!token.rowCount) return false;
+    const codeHash = hashPasswordResetCode(
+      userId, token.rows[0].id, parsed.data.code,
+      SESSION_SECRET || 'development-only-password-reset-secret'
+    );
+    if (!safeEqual(token.rows[0].token_hash, codeHash)) {
+      const attempts = Number(token.rows[0].attempts) + 1;
+      await client.query(
+        'UPDATE password_reset_tokens SET attempts=$2, used_at=CASE WHEN $2>=5 THEN NOW() ELSE used_at END WHERE id=$1',
+        [token.rows[0].id, attempts]
+      );
+      return false;
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    await client.query('UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2', [passwordHash, userId]);
+    await client.query("DELETE FROM user_sessions WHERE sess->>'userId'=$1", [userId]);
+    await client.query(
+      'UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+      [userId]
+    );
+    return true;
+  });
+  if (!updated) return res.status(400).json({ error: 'The code is invalid, expired, or already used. Request a new code and try again.' });
+  res.json({ message: 'Password updated. Sign in with your new password.' });
 }));
 
 app.post('/api/auth/password-reset/confirm', authLimiter, asyncRoute(async (req, res) => {
@@ -729,6 +804,7 @@ app.post('/api/auth/password-reset/confirm', authLimiter, asyncRoute(async (req,
     );
     if (!token.rowCount) return false;
     await client.query('UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2', [passwordHash, token.rows[0].user_id]);
+    await client.query("DELETE FROM user_sessions WHERE sess->>'userId'=$1", [token.rows[0].user_id]);
     await client.query('UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1', [token.rows[0].id]);
     return true;
   });

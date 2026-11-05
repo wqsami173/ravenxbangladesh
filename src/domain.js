@@ -1,3 +1,5 @@
+const crypto = require('node:crypto');
+
 const DISTANCES = Object.freeze({
   '3.1km': { label: '3.1 KM', category: 'Silver', prefix: 'SR31', image: '/assets/3.1KM.jpeg' },
   '6.66km': { label: '6.66 KM', category: 'Golden', prefix: 'SR66', image: '/assets/6.66km.jpg' },
@@ -99,6 +101,12 @@ function normalizeName(value) {
     .replace(/\s+/g, ' ');
 }
 
+function hashPasswordResetCode(userId, tokenId, code, secret) {
+  return crypto.createHmac('sha256', String(secret))
+    .update(String(userId) + ':' + String(tokenId) + ':' + String(code))
+    .digest('hex');
+}
+
 function generateCertificateSvg({ name, eventName, bib, distance, issuedAt, verificationCode }) {
   const safe = {
     name: escapeXml(name),
@@ -131,6 +139,6 @@ function generateCertificateSvg({ name, eventName, bib, distance, issuedAt, veri
 module.exports = {
   DISTANCES, REGISTRATION_FEES, feeForCategory, feeForEvent, bibPrefix, makeBibNumber,
   validateStravaUrl, validateActivityUrl, validateStravaProfileUrl, detectImageMime, escapeXml,
-  safeFilename, normalizeName, generateCertificateSvg
+  safeFilename, normalizeName, hashPasswordResetCode, generateCertificateSvg
 };
 

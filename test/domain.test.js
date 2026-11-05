@@ -3,9 +3,10 @@ const assert = require('node:assert/strict');
 
 const {
   DISTANCES, feeForCategory, feeForEvent, bibPrefix, makeBibNumber, validateStravaUrl, validateActivityUrl, validateStravaProfileUrl,
-  detectImageMime, generateCertificateSvg, normalizeName
+  detectImageMime, generateCertificateSvg, normalizeName, hashPasswordResetCode
 } = require('../src/domain');
 const { makeShadowSprintBibSvg, makeShadowSprintCertificateSvg, rasterizePng } = require('../src/designs');
+const { template: emailTemplate } = require('../src/email');
 const sharp = require('sharp');
 
 test('Shadow Sprint distances map to the supplied medal categories and assets', () => {
@@ -110,4 +111,21 @@ test('personalized BIB and certificate output rasterizes to PNG at template reso
 
 test('participant-name normalization is case and punctuation insensitive', () => {
   assert.equal(normalizeName('  Raven-X  Runner '), normalizeName('raven x runner'));
+});
+
+test('password reset code hashes are keyed and bound to one account', () => {
+  const first = hashPasswordResetCode('user-a', 'request-a', '012345', 'session-secret');
+  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.notEqual(first, hashPasswordResetCode('user-b', 'request-a', '012345', 'session-secret'));
+  assert.notEqual(first, hashPasswordResetCode('user-a', 'request-a', '012346', 'session-secret'));
+  assert.notEqual(first, hashPasswordResetCode('user-a', 'request-b', '012345', 'session-secret'));
+  assert.notEqual(first, hashPasswordResetCode('user-a', 'request-a', '012345', 'another-secret'));
+});
+
+test('password reset email contains the one-time code and expiry guidance', () => {
+  const email = emailTemplate('password_reset_code', { code: '012345' });
+  assert.match(email.subject, /RavenX password reset code/);
+  assert.match(email.html, /012345/);
+  assert.match(email.html, /expires in 10 minutes/);
+  assert.match(email.html, /ignore this email/);
 });

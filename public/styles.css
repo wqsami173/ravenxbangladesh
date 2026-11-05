@@ -161,6 +161,7 @@ img { max-width: 100%; }
 .auth-submit { width: 100%; margin-top: 13px; }
 .auth-switch { text-align: center; margin: 17px 0 0 !important; }
 .auth-switch button { border: 0; background: none; color: var(--gold); font-weight: 750; cursor: pointer; }
+.reset-code-input { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .3em; }
 .dashboard-layout { min-height: calc(100vh - 76px); display: grid; grid-template-columns: 238px minmax(0,1fr); }
 .dashboard-sidebar { position: sticky; top: 76px; align-self: start; height: calc(100vh - 76px); padding: 23px 15px; border-right: 1px solid var(--line); background: #101612; }
 .sidebar-user { display: flex; gap: 10px; align-items: center; padding: 12px; margin-bottom: 19px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }

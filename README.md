@@ -108,7 +108,7 @@ Cloudinary remains optional for future event assets. Shadow Sprint certificate a
    ```
 
 3. Sign out and sign back in. The account now has administrator routes. Public signup always creates participant accounts.
-4. Participants create accounts at `/#/signup`, sign in at `/#/login`, and use **Events → Shadow Sprint Run 2026** to register. A participant can request a password reset from the login page; legacy registrations that were backfilled without a password can use that flow to set one.
+4. Participants create accounts at `/#/signup`, sign in at `/#/login`, and use **Events → Shadow Sprint Run 2026** to register. **Forgot password?** emails a six-digit code from the configured RavenX Gmail sender. The code expires after 10 minutes, is single-use, and locks after five incorrect attempts. Reset requests use a generic response so the endpoint does not disclose whether an email has an account.
 
 ## Workflow and routes
 
@@ -151,7 +151,9 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `POST` | `/api/auth/login`, `/api/auth/logout` | Sign in (`email`, `password`, optional `remember`) and sign out. |
 | `GET` | `/api/auth/me`, `/api/me/profile` | Current account/profile. |
 | `PATCH` | `/api/me/profile` | Edit participant name and phone. |
-| `POST` | `/api/auth/password-reset/request`, `/api/auth/password-reset/confirm` | Request and consume a one-time reset link. |
+| `POST` | `/api/auth/password-reset/request` | Request a one-time reset code (`email`); the response does not reveal whether the account exists. |
+| `POST` | `/api/auth/password-reset/verify-code` | Verify a reset code and change the password (`email`, `code`, `password`, `confirmPassword`). |
+| `POST` | `/api/auth/password-reset/confirm` | Consume a previously issued legacy reset link (`token`, `password`, `confirmPassword`). |
 | `POST` | `/api/events/:slug/registrations` | Authenticated registration form data; file uploads are rejected. |
 | `GET` | `/api/me/events`, `/api/me/events/:registrationId` | Own approved, pending, and rejected registrations; detail is ownership-checked. |
 | `GET` | `/api/me/events/:registrationId/bib` | Own approved BIB preview as PNG; add `?download=1` to download PNG. |
@@ -174,9 +176,9 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 
 ## Database migration
 
-Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/005_shop_product_options.sql`.
+Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/006_password_reset_codes.sql`.
 
-`npm run migrate` uses the configured `DATABASE_URL`, records applied files in `schema_migrations`, and applies each SQL file transactionally. The migrations preserve legacy registration tables, payment columns, and historical image references; backfill users without inventing passwords; and create event workflows, shop products/orders, submissions, certificates, notifications, audit, session, BIB-counter, and email-outbox structures. Migration 005 adds optional size selection to products while retaining existing jersey sizes. Current participant screenshot and student ID files remain local to the browser and are excluded from requests and storage. As a result, the browser requirement is a convenience only; participants can bypass it, and the administrator cannot inspect those images.
+`npm run migrate` uses the configured `DATABASE_URL`, records applied files in `schema_migrations`, and applies each SQL file transactionally. The migrations preserve legacy registration tables, payment columns, and historical image references; backfill users without inventing passwords; and create event workflows, shop products/orders, submissions, certificates, notifications, audit, session, BIB-counter, and email-outbox structures. Migration 005 adds optional size selection to products while retaining existing jersey sizes. Migration 006 adds bounded attempts for password reset codes. Current participant screenshot and student ID files remain local to the browser and are excluded from requests and storage. As a result, the browser requirement is a convenience only; participants can bypass it, and the administrator cannot inspect those images.
 
 The provided Neon database was inspected in a read-only transaction before migration; it initially had no application tables or participant records. The additive migration was then applied successfully and the resulting schema verified. It creates the event and platform tables without deleting or truncating data.
 

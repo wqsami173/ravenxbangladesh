@@ -111,6 +111,12 @@ function template(name, data = {}) {
       subject: 'Set or reset your RavenX password',
       html: '<p>Use this one-time link to set your password. The link expires in 30 minutes.</p>' + emailButton(data.resetUrl, 'Set password')
     },
+    password_reset_code: {
+      subject: 'Your RavenX password reset code',
+      html: '<p>We received a request to reset the password for your RavenX account. Enter this code on the reset page:</p>'
+        + '<div style="margin:22px 0;padding:18px 22px;border-radius:12px;background:#f5f7f4;border:1px solid #e5e9e3;text-align:center;color:#18211c;font-size:32px;font-weight:800;letter-spacing:.28em">'
+        + v.code + '</div><p>This code can be used once and expires in 10 minutes.</p><p>If you did not request a password reset, you can ignore this email.</p>'
+    },
     shop_order_admin: {
       subject: 'New RavenX shop order – ' + v.orderCode,
       html: '<p>A new jersey order is waiting for delivery processing.</p><dl>'
@@ -143,9 +149,14 @@ async function enqueueEmail(client, recipient, templateName, data) {
 
 async function sendOne(email) {
   const content = template(email.template_name, email.payload);
+  if (email.template_name === 'password_reset_code' && !gmailConfigured) {
+    throw new Error('The RavenX Gmail password-reset sender is not configured.');
+  }
   if (gmailConfigured) {
     await gmailTransporter.sendMail({
-      from: EMAIL_FROM || 'RavenX <' + GMAIL_USER + '>',
+      from: email.template_name === 'password_reset_code'
+        ? 'RavenX <' + GMAIL_USER + '>'
+        : EMAIL_FROM || 'RavenX <' + GMAIL_USER + '>',
       to: email.recipient,
       subject: content.subject,
       html: content.html
@@ -202,9 +213,24 @@ async function processOutbox() {
 
   for (const email of rows || []) {
     try {
+      if (email.template_name === 'password_reset_code') {
+        const validCode = email.payload?.tokenId
+          ? await pool.query(
+            'SELECT 1 FROM password_reset_tokens WHERE id=$1 AND used_at IS NULL AND expires_at>NOW()',
+            [email.payload.tokenId]
+          )
+          : { rowCount: 0 };
+        if (!validCode.rowCount) {
+          await pool.query(
+            "UPDATE email_outbox SET status='FAILED', payload='{}'::jsonb, locked_at=NULL, last_error=$2 WHERE id=$1",
+            [email.id, 'Password reset code expired or was replaced before delivery.']
+          );
+          continue;
+        }
+      }
       await sendOne(email);
       await pool.query(
-        'UPDATE email_outbox SET status=$2, sent_at=NOW(), locked_at=NULL, last_error=NULL WHERE id=$1',
+        "UPDATE email_outbox SET status=$2, payload=CASE WHEN template_name='password_reset_code' THEN '{}'::jsonb ELSE payload END, sent_at=NOW(), locked_at=NULL, last_error=NULL WHERE id=$1",
         [email.id, 'SENT']
       );
     } catch (error) {
@@ -212,7 +238,7 @@ async function processOutbox() {
       const status = attempts >= 12 ? 'FAILED' : 'PENDING';
       const delayMinutes = Math.min(60, 2 ** Math.min(attempts, 6));
       await pool.query(
-        'UPDATE email_outbox SET status=$2, locked_at=NULL, last_error=$3, ' +
+        "UPDATE email_outbox SET status=$2, payload=CASE WHEN $2='FAILED' AND template_name='password_reset_code' THEN '{}'::jsonb ELSE payload END, locked_at=NULL, last_error=$3, " +
         "next_attempt_at=NOW() + ($4::text || ' minutes')::interval WHERE id=$1",
         [email.id, status, String(error.message).slice(0, 500), delayMinutes]
       );
