@@ -805,7 +805,10 @@ app.post('/api/auth/password-reset/confirm', authLimiter, asyncRoute(async (req,
     if (!token.rowCount) return false;
     await client.query('UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2', [passwordHash, token.rows[0].user_id]);
     await client.query("DELETE FROM user_sessions WHERE sess->>'userId'=$1", [token.rows[0].user_id]);
-    await client.query('UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1', [token.rows[0].id]);
+    await client.query(
+      'UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+      [token.rows[0].user_id]
+    );
     return true;
   });
   if (!updated) return res.status(400).json({ error: 'This password setup link has expired or was already used.' });
