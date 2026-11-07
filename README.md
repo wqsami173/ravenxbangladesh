@@ -108,7 +108,7 @@ Cloudinary remains optional for future event assets. Shadow Sprint certificate a
    ```
 
 3. Sign out and sign back in. The account now has administrator routes. Public signup always creates participant accounts.
-4. Participants create accounts at `/#/signup`, sign in at `/#/login`, and use **Events → Shadow Sprint Run 2026** to register. **Forgot password?** emails a six-digit code from the configured RavenX Gmail sender. The code expires after 10 minutes, is single-use, and locks after five incorrect attempts. Reset requests use a generic response so the endpoint does not disclose whether an email has an account.
+4. Participants can register directly from **Events → Shadow Sprint Run 2026** without signing up first. The registration form collects their name, email, phone, and a password they choose; the server creates their participant account and registration together, then signs them in. Their password is bcrypt-hashed and never emailed. Participants who already have an account should sign in before registering. **Forgot password?** emails a six-digit code from the configured RavenX Gmail sender. The code expires after 10 minutes, is single-use, and locks after five incorrect attempts. Reset requests use a generic response so the endpoint does not disclose whether an email has an account.
 
 ## Workflow and routes
 
@@ -154,7 +154,7 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `POST` | `/api/auth/password-reset/request` | Request a one-time reset code (`email`); the response does not reveal whether the account exists. |
 | `POST` | `/api/auth/password-reset/verify-code` | Verify a reset code and change the password (`email`, `code`, `password`, `confirmPassword`). |
 | `POST` | `/api/auth/password-reset/confirm` | Consume a previously issued legacy reset link (`token`, `password`, `confirmPassword`). |
-| `POST` | `/api/events/:slug/registrations` | Authenticated registration form data; file uploads are rejected. |
+| `POST` | `/api/events/:slug/registrations` | Public registration form data creates a participant account when needed; logged-in participants can register with their existing account. File uploads are rejected. |
 | `GET` | `/api/me/events`, `/api/me/events/:registrationId` | Own approved, pending, and rejected registrations; detail is ownership-checked. |
 | `GET` | `/api/me/events/:registrationId/bib` | Own approved BIB preview as PNG; add `?download=1` to download PNG. |
 | `POST` | `/api/me/events/:registrationId/submissions` | Own approved registration run submission (`activity_url` required). Participant details and BIB come from the owned registration; file uploads are rejected. |

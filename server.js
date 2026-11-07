@@ -210,6 +210,21 @@ const requireAuth = asyncRoute(async (req, res, next) => {
   return next();
 });
 
+const optionalAuth = asyncRoute(async (req, res, next) => {
+  if (!req.session.userId) return next();
+  if (!requireDatabase(res)) return;
+  const result = await pool.query(
+    'SELECT id, name, email, phone, role, created_at FROM users WHERE id=$1',
+    [req.session.userId]
+  );
+  if (!result.rowCount) {
+    req.session.destroy(() => {});
+    return next();
+  }
+  req.user = result.rows[0];
+  return next();
+});
+
 const requireAdmin = [
   requireAuth,
   (req, res, next) => {
@@ -245,6 +260,15 @@ const registrationSchema = z.object({
   payment_method: z.string().trim().min(1).max(40),
   payment_number: z.string().trim().min(8).max(32),
   transaction_id: z.string().trim().min(3).max(100)
+});
+const registrationAccountSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(254),
+  phone: z.string().trim().min(6).max(32),
+  password: z.string().min(8).max(128),
+  confirmPassword: z.string().min(8).max(128)
+}).refine((value) => value.password === value.confirmPassword, {
+  path: ['confirmPassword'], message: 'Passwords do not match.'
 });
 const reviewRegistrationSchema = z.object({
   action: z.enum(['approve', 'reject']),
@@ -857,6 +881,10 @@ async function submitRegistration(req, res) {
   if (!requireDatabase(res)) return;
   const parsed = registrationSchema.safeParse(req.body);
   if (!parsed.success) return validationError(res, parsed);
+  const accountParsed = req.user ? null : registrationAccountSchema.safeParse(req.body);
+  if (accountParsed && !accountParsed.success) return validationError(res, accountParsed);
+  if (req.user?.role === 'admin') throw new HttpError(403, 'Administrator accounts cannot register as participants.');
+
   const event = await eventBySlug(req.params.slug || 'shadow-sprint-2026');
   if (!event) throw new HttpError(404, 'Event not found.');
   if (!event.registration_open) throw new HttpError(409, 'Registration is currently closed.');
@@ -867,13 +895,44 @@ async function submitRegistration(req, res) {
   if (!Number.isFinite(fee) || fee < 0) throw new HttpError(400, 'Choose a registration category offered by this event.');
   const paymentMethods = Array.isArray(metadata.payment_methods) ? metadata.payment_methods : ['Bkash', 'Nagad', 'Rocket'];
   if (!paymentMethods.includes(parsed.data.payment_method)) throw new HttpError(400, 'Choose a payment method offered by this event.');
+
+  const accountData = accountParsed?.data;
+  const email = req.user ? req.user.email : accountData.email.toLowerCase();
+  let participant = req.user || null;
+  let accountCreated = false;
   try {
     const registration = await withTransaction(async (client) => {
-      await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [req.user.id]);
+      if (!participant) {
+        const existing = await client.query(
+          'SELECT id FROM users WHERE LOWER(email)=LOWER($1) FOR UPDATE',
+          [email]
+        );
+        if (existing.rowCount) {
+          throw new HttpError(409, 'This email already has a RavenX account. Sign in first, or use Forgot password if needed.');
+        }
+        const passwordHash = await bcrypt.hash(accountData.password, 12);
+        const created = await client.query(
+          'INSERT INTO users (name,email,phone,password_hash,role) VALUES ($1,$2,$3,$4,$5) ' +
+          'RETURNING id,name,email,phone,role,created_at',
+          [accountData.name, email, accountData.phone, passwordHash, 'participant']
+        );
+        participant = created.rows[0];
+        accountCreated = true;
+        await participantNotification(
+          client, participant.id, null, 'Welcome to RavenX',
+          'Your RavenX account was created with your event registration.', '/#/dashboard'
+        );
+      }
+
+      const lockedParticipant = await client.query(
+        'SELECT id FROM users WHERE id=$1 FOR UPDATE',
+        [participant.id]
+      );
+      if (!lockedParticipant.rowCount) throw new HttpError(401, 'Your account is no longer available. Sign in again.');
       const duplicate = await client.query(
         'SELECT 1 FROM registrations WHERE user_id=$1 AND event_id=$2 ' +
         'AND registration_status IN ($3,$4) AND ($5::boolean=FALSE OR selected_distance=$6) LIMIT 1',
-        [req.user.id, event.id, 'PENDING_APPROVAL', 'APPROVED', event.allow_multiple_registrations, parsed.data.distance]
+        [participant.id, event.id, 'PENDING_APPROVAL', 'APPROVED', event.allow_multiple_registrations, parsed.data.distance]
       );
       if (duplicate.rowCount) {
         throw new HttpError(409, event.allow_multiple_registrations
@@ -893,7 +952,7 @@ async function submitRegistration(req, res) {
         'VALUES (gen_random_uuid(),$1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$11,$12,$13,$14,CASE WHEN $15::boolean THEN NOW() ELSE NULL END) ' +
         'RETURNING platform_id,created_at,bib_number,registration_status',
         [
-          req.user.id, event.id, req.user.name, req.user.email, req.user.phone,
+          participant.id, event.id, participant.name, participant.email, participant.phone,
           parsed.data.distance, parsed.data.category, parsed.data.gender,
           parsed.data.payment_method, parsed.data.payment_number, parsed.data.transaction_id,
           fee, status, bib, !requiresApproval
@@ -902,17 +961,29 @@ async function submitRegistration(req, res) {
       const row = inserted.rows[0];
       const link = '/#/my-events/' + row.platform_id;
       if (status === 'PENDING_APPROVAL') {
-        await participantNotification(client, req.user.id, row.platform_id, 'Registration submitted', 'Your registration is waiting for administrator approval.', link);
+        await participantNotification(client, participant.id, row.platform_id, 'Registration submitted', 'Your registration is waiting for administrator approval.', link);
       } else {
-        await participantNotification(client, req.user.id, row.platform_id, 'Registration approved', 'Your registration was automatically approved.' + (bib ? ' Your BIB is ' + bib + '.' : ''), link);
-        if (bib) await participantNotification(client, req.user.id, row.platform_id, 'BIB assigned', 'Your BIB number is ' + bib + '.', link);
-        await enqueueEmail(client, req.user.email, 'registration_approved', {
-          name: req.user.name, bib: bib || 'Pending assignment', eventName: event.name
+        await participantNotification(client, participant.id, row.platform_id, 'Registration approved', 'Your registration was automatically approved.' + (bib ? ' Your BIB is ' + bib + '.' : ''), link);
+        if (bib) await participantNotification(client, participant.id, row.platform_id, 'BIB assigned', 'Your BIB number is ' + bib + '.', link);
+        await enqueueEmail(client, participant.email, 'registration_approved', {
+          name: participant.name, bib: bib || 'Pending assignment', eventName: event.name
         });
       }
-      await adminNotification(client, row.platform_id, 'New registration', req.user.name + ' registered for ' + event.name + '.', '/#/admin/registrations');
+
+      if (accountCreated) {
+        await enqueueEmail(client, participant.email, 'registration_account_created', {
+          name: participant.name, eventName: event.name, registrationId: row.platform_id,
+          distance: parsed.data.distance, status, bib: row.bib_number || ''
+        });
+      } else if (status === 'PENDING_APPROVAL') {
+        await enqueueEmail(client, participant.email, 'registration_received', {
+          name: participant.name, eventName: event.name, registrationId: row.platform_id,
+          distance: parsed.data.distance
+        });
+      }
+      await adminNotification(client, row.platform_id, 'New registration', participant.name + ' registered for ' + event.name + '.', '/#/admin/registrations');
       const mailData = {
-        name: req.user.name, email: req.user.email, phone: req.user.phone,
+        name: participant.name, email: participant.email, phone: participant.phone,
         registrationId: row.platform_id, distance: parsed.data.distance,
         paymentMethod: parsed.data.payment_method, transactionId: parsed.data.transaction_id,
         submittedAt: safeDate(row.created_at), eventName: event.name, status,
@@ -921,28 +992,35 @@ async function submitRegistration(req, res) {
       await enqueueEmail(client, ADMIN_EMAIL, 'registration_admin', mailData);
       return row;
     });
-    sendMetaConversion(req, req.user, fee, registration.platform_id).catch((error) => {
+
+    if (accountCreated) await establishSession(req, participant.id, false);
+    sendMetaConversion(req, participant, fee, registration.platform_id).catch((error) => {
       console.error('Meta conversion notification failed', { code: error.code || 'UNKNOWN' });
     });
-    res.status(201).json({
+    const response = {
       registrationId: registration.platform_id,
       status: registration.registration_status,
       bibNumber: registration.bib_number,
+      accountCreated,
       message: registration.registration_status === 'APPROVED'
         ? 'Registration approved.' + (registration.bib_number ? ' Your BIB is ' + registration.bib_number + '.' : '')
-        : 'Registration submitted and waiting for approval.'
-    });
+        : 'Registration submitted and waiting for administrator approval.'
+    };
+    if (accountCreated) {
+      response.user = safeUser(participant);
+      response.csrfToken = req.session.csrfToken;
+    }
+    res.status(201).json(response);
   } catch (error) {
-    if (uploaded?.publicId) {
-      const { deleteAsset } = require('./src/storage');
-      await deleteAsset(uploaded.publicId, 'image', 'authenticated').catch(() => {});
+    if (error.code === '23505') {
+      throw new HttpError(409, 'This email already has a RavenX account. Sign in first, or use Forgot password if needed.');
     }
     throw error;
   }
 }
 
-app.post('/api/events/:slug/registrations', requireAuth, writeLimiter, formFieldsOnly, asyncRoute(submitRegistration));
-app.post('/api/register', requireAuth, writeLimiter, formFieldsOnly, asyncRoute(submitRegistration));
+app.post('/api/events/:slug/registrations', writeLimiter, formFieldsOnly, optionalAuth, asyncRoute(submitRegistration));
+app.post('/api/register', writeLimiter, formFieldsOnly, optionalAuth, asyncRoute(submitRegistration));
 
 function sendMetaConversion(req, user, fee, registrationId) {
   const pixelId = process.env.META_PIXEL_ID;
