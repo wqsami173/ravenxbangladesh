@@ -154,6 +154,13 @@ const submissionLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Submission limit reached. Try again later.' }
 });
+const chatMessageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many chat messages. Please wait a moment and try again.' }
+});
 
 class HttpError extends Error {
   constructor(status, message, code) {
@@ -210,6 +217,21 @@ const requireAuth = asyncRoute(async (req, res, next) => {
   return next();
 });
 
+const optionalAuth = asyncRoute(async (req, res, next) => {
+  if (!req.session.userId) return next();
+  if (!requireDatabase(res)) return;
+  const result = await pool.query(
+    'SELECT id, name, email, phone, role, created_at FROM users WHERE id=$1',
+    [req.session.userId]
+  );
+  if (!result.rowCount) {
+    req.session.destroy(() => {});
+    return next();
+  }
+  req.user = result.rows[0];
+  return next();
+});
+
 const requireAdmin = [
   requireAuth,
   (req, res, next) => {
@@ -245,6 +267,15 @@ const registrationSchema = z.object({
   payment_method: z.string().trim().min(1).max(40),
   payment_number: z.string().trim().min(8).max(32),
   transaction_id: z.string().trim().min(3).max(100)
+});
+const registrationAccountSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(254),
+  phone: z.string().trim().min(6).max(32),
+  password: z.string().min(8).max(128),
+  confirmPassword: z.string().min(8).max(128)
+}).refine((value) => value.password === value.confirmPassword, {
+  path: ['confirmPassword'], message: 'Passwords do not match.'
 });
 const reviewRegistrationSchema = z.object({
   action: z.enum(['approve', 'reject']),
@@ -339,6 +370,23 @@ const shopOrderBulkSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100),
   status: z.enum(['READY_FOR_COURIER', 'DISPATCHED', 'DELIVERED'])
 });
+const chatMessageSchema = z.object({
+  message: z.string().trim().min(1).max(2000),
+  name: z.string().trim().min(2).max(100).optional(),
+  email: z.string().trim().email().max(254).optional()
+}).strict();
+const adminChatActionSchema = z.object({
+  action: z.enum(['accept', 'close'])
+}).strict();
+const adminChatMessageSchema = z.object({
+  message: z.string().trim().min(1).max(2000)
+}).strict();
+const analyticsPageSchema = z.object({
+  pagePath: z.string().trim().max(200).regex(/^\/(?:|events(?:\/[a-z0-9][a-z0-9-]*)?|shop)$/i)
+}).strict();
+const analyticsDurationSchema = z.object({
+  durationSeconds: z.number().int().min(0).max(86400)
+}).strict();
 
 function participantNotification(client, userId, registrationId, title, message, linkPath) {
   return client.query(
@@ -354,6 +402,64 @@ function adminNotification(client, registrationId, title, message, linkPath) {
     'VALUES (NULL,$1,$2,$3,$4,$5)',
     [registrationId || null, 'ADMIN', title, message, linkPath || null]
   );
+}
+
+function chatOwnerHash(req) {
+  return crypto.createHmac('sha256', SESSION_SECRET || 'development-only-chat-secret')
+    .update(String(req.sessionID || ''))
+    .digest('hex');
+}
+
+function analyticsVisitorHash(req) {
+  return crypto.createHmac('sha256', SESSION_SECRET || 'development-only-analytics-secret')
+    .update('ravenx-analytics:' + String(req.sessionID || ''))
+    .digest('hex');
+}
+
+function chatOwnerSql(alias = 'c') {
+  return '(($2::uuid IS NOT NULL AND ' + alias + '.user_id=$2) OR (' + alias + '.user_id IS NULL AND ' + alias + '.owner_session_hash=$1))';
+}
+
+function assertChatUuid(value, label) {
+  if (!z.string().uuid().safeParse(value).success) throw new HttpError(400, 'Invalid ' + label + '.');
+}
+
+function serializeChatConversation(row, { admin = false } = {}) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    status: row.status === 'AI_ACTIVE' ? 'ADMIN_REQUESTED' : row.status,
+    visitorName: row.visitor_name || null,
+    visitorEmail: row.visitor_email || null,
+    ...(admin ? {
+      userId: row.user_id || null,
+      accountName: row.account_name || null,
+      accountEmail: row.account_email || null
+    } : {}),
+    requestedAt: row.requested_at || null,
+    acceptedAt: row.accepted_at || null,
+    closedAt: row.closed_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function loadChatMessages(client, conversationId, limit = 100) {
+  const result = await client.query(
+    'SELECT id,sender,body,feedback,created_at FROM chat_messages ' +
+    'WHERE conversation_id=$1 ORDER BY created_at,id LIMIT $2',
+    [conversationId, limit]
+  );
+  return result.rows;
+}
+
+async function sendAdminChatReply(client, conversation, message) {
+  if (!conversation.visitor_email) return;
+  await enqueueEmail(client, conversation.visitor_email, 'chat_admin_reply', {
+    name: conversation.visitor_name || 'RavenX participant',
+    message: message.body,
+    conversationId: conversation.id
+  });
 }
 
 function auditLog(client, adminId, action, targetType, targetId, details = {}) {
@@ -594,6 +700,241 @@ app.get('/api/shop/products', asyncRoute(async (req, res) => {
     currency: row.currency,
     hasSizes: row.has_sizes
   })) });
+}));
+
+app.post('/api/analytics/visits', writeLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const parsed = analyticsPageSchema.safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+  const result = await pool.query(
+    'INSERT INTO site_analytics_visits (visitor_hash,page_path) VALUES ($1,$2) RETURNING id',
+    [analyticsVisitorHash(req), parsed.data.pagePath]
+  );
+  res.status(201).json({ visitId: result.rows[0].id });
+}));
+
+app.patch('/api/analytics/visits/:visitId', writeLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  assertChatUuid(req.params.visitId, 'visit ID');
+  const parsed = analyticsDurationSchema.safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+  const result = await pool.query(
+    'UPDATE site_analytics_visits SET duration_seconds=GREATEST(duration_seconds,LEAST($3,GREATEST(0,EXTRACT(EPOCH FROM (NOW()-started_at))::int))),last_activity_at=NOW() ' +
+    'WHERE id=$1 AND visitor_hash=$2 RETURNING id',
+    [req.params.visitId, analyticsVisitorHash(req), parsed.data.durationSeconds]
+  );
+  if (!result.rowCount) throw new HttpError(404, 'Visit not found.');
+  res.json({ updated: true });
+}));
+
+app.get('/api/chat/conversation', optionalAuth, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const result = await pool.query(
+    'SELECT c.* FROM chat_conversations c WHERE ' + chatOwnerSql('c') +
+    " AND c.status <> 'CLOSED' ORDER BY c.updated_at DESC LIMIT 1",
+    [chatOwnerHash(req), req.user?.id || null]
+  );
+  const conversation = result.rows[0] || null;
+  const messages = conversation ? await loadChatMessages(pool, conversation.id) : [];
+  res.json({ conversation: serializeChatConversation(conversation), messages });
+}));
+
+app.post('/api/chat/messages', optionalAuth, chatMessageLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const parsed = chatMessageSchema.safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+  const message = parsed.data.message;
+  if (/data:(image|audio)\//i.test(message)) throw new HttpError(415, 'RavenX chat accepts text messages only.');
+  if (req.user?.role === 'admin') throw new HttpError(403, 'Admin accounts cannot start visitor support chats.');
+
+  const state = await withTransaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [req.user?.id || chatOwnerHash(req)]);
+    const found = await client.query(
+      'SELECT c.* FROM chat_conversations c WHERE ' + chatOwnerSql('c') +
+      " AND c.status <> 'CLOSED' ORDER BY c.updated_at DESC LIMIT 1 FOR UPDATE",
+      [chatOwnerHash(req), req.user?.id || null]
+    );
+    let conversation = found.rows[0];
+    const name = req.user?.name || parsed.data.name || conversation?.visitor_name || null;
+    const email = req.user?.email || parsed.data.email?.toLowerCase() || conversation?.visitor_email || null;
+    if (!conversation && (!name || !email)) {
+      throw new HttpError(400, 'Enter your name and email so the RavenX admin can reply.');
+    }
+    if (conversation && (!name || !email)) {
+      throw new HttpError(400, 'Please add your name and email so the RavenX admin can reply.');
+    }
+    let isNewConversation = false;
+    if (!conversation) {
+      const created = await client.query(
+        "INSERT INTO chat_conversations (owner_session_hash,user_id,visitor_name,visitor_email,status,requested_at) VALUES ($1,$2,$3,$4,'ADMIN_REQUESTED',NOW()) RETURNING *",
+        [chatOwnerHash(req), req.user?.id || null, name, email]
+      );
+      conversation = created.rows[0];
+      isNewConversation = true;
+    }
+    const inserted = await client.query(
+      'INSERT INTO chat_messages (conversation_id,sender,body) VALUES ($1,$2,$3) RETURNING id,sender,body,feedback,created_at',
+      [conversation.id, 'VISITOR', message]
+    );
+    const wasAwaitingAdmin = ['ADMIN_REQUESTED', 'AI_ACTIVE'].includes(conversation.status);
+    const newStatus = wasAwaitingAdmin ? 'ADMIN_REQUESTED' : conversation.status;
+    const updated = await client.query(
+      "UPDATE chat_conversations SET visitor_name=$2,visitor_email=$3,status=$4,requested_at=CASE WHEN $4='ADMIN_REQUESTED' THEN COALESCE(requested_at,NOW()) ELSE requested_at END,updated_at=NOW() WHERE id=$1 RETURNING *",
+      [conversation.id, name, email, newStatus]
+    );
+    await adminNotification(client, null, isNewConversation ? 'New visitor chat' : 'New message in visitor chat',
+      name + ' (' + email + ') sent: ' + message.slice(0, 240), '/#/admin/chats?id=' + conversation.id);
+    if (isNewConversation) {
+      await enqueueEmail(client, ADMIN_EMAIL, 'chat_message_admin', {
+        name, email, message, conversationId: conversation.id
+      });
+    }
+    return { conversation: updated.rows[0], userMessage: inserted.rows[0] };
+  });
+  res.status(201).json({
+    conversation: serializeChatConversation(state.conversation),
+    conversationId: state.conversation.id,
+    status: serializeChatConversation(state.conversation).status,
+    messages: await loadChatMessages(pool, state.conversation.id)
+  });
+}));
+
+app.get('/api/admin/chats', requireAdmin, asyncRoute(async (req, res) => {
+  const status = String(req.query.status || 'ALL').toUpperCase();
+  const allowed = ['ALL', 'ADMIN_REQUESTED', 'ADMIN_ACCEPTED', 'CLOSED'];
+  if (!allowed.includes(status)) throw new HttpError(400, 'Choose a valid chat status filter.');
+  const result = await pool.query(
+    "SELECT c.id,c.user_id,c.visitor_name,c.visitor_email,CASE WHEN c.status='AI_ACTIVE' THEN 'ADMIN_REQUESTED' ELSE c.status END AS status,c.requested_at,c.accepted_at,c.updated_at,c.created_at," +
+    '(SELECT body FROM chat_messages m WHERE m.conversation_id=c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,' +
+    '(SELECT COUNT(*)::int FROM chat_messages m WHERE m.conversation_id=c.id AND m.sender=$1 AND m.created_at>COALESCE(c.accepted_at,c.requested_at,c.created_at)) AS visitor_unread ' +
+    "FROM chat_conversations c WHERE ($2=$3 OR c.status=$2 OR ($2='ADMIN_REQUESTED' AND c.status='AI_ACTIVE')) ORDER BY CASE WHEN c.status IN ($4,'AI_ACTIVE') THEN 0 WHEN c.status=$5 THEN 1 ELSE 2 END,c.updated_at DESC LIMIT 200",
+    ['VISITOR', status, 'ALL', 'ADMIN_REQUESTED', 'ADMIN_ACCEPTED']
+  );
+  res.json({ conversations: result.rows });
+}));
+
+app.delete('/api/admin/chats', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const status = String(req.query.status || 'ALL').toUpperCase();
+  const allowed = ['ALL', 'ADMIN_REQUESTED', 'ADMIN_ACCEPTED', 'CLOSED'];
+  if (!allowed.includes(status)) throw new HttpError(400, 'Choose a valid chat status filter.');
+  const deletedCount = await withTransaction(async (client) => {
+    const found = await client.query(
+      "SELECT id FROM chat_conversations WHERE ($1='ALL' OR status=$1 OR ($1='ADMIN_REQUESTED' AND status='AI_ACTIVE')) FOR UPDATE",
+      [status]
+    );
+    const ids = found.rows.map((row) => row.id);
+    if (!ids.length) return 0;
+    await client.query(
+      "DELETE FROM email_outbox WHERE template_name=ANY($1::text[]) AND payload->>'conversationId'=ANY($2::text[])",
+      [['chat_handoff_admin', 'chat_message_admin', 'chat_admin_reply'], ids.map(String)]
+    );
+    await client.query(
+      "DELETE FROM notifications WHERE audience='ADMIN' AND link_path=ANY($1::text[])",
+      [ids.map((id) => '/#/admin/chats?id=' + id)]
+    );
+    await client.query('DELETE FROM chat_conversations WHERE id=ANY($1::uuid[])', [ids]);
+    await auditLog(client, req.user.id, 'CHAT_INBOX_CLEARED', 'chat_inbox', status, { deletedCount: ids.length });
+    return ids.length;
+  });
+  res.json({ deletedCount });
+}));
+
+app.delete('/api/admin/chats/:conversationId', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  assertChatUuid(req.params.conversationId, 'conversation ID');
+  const deleted = await withTransaction(async (client) => {
+    const found = await client.query(
+      'SELECT id,status FROM chat_conversations WHERE id=$1 FOR UPDATE',
+      [req.params.conversationId]
+    );
+    if (!found.rowCount) throw new HttpError(404, 'Chat not found.');
+    await client.query(
+      "DELETE FROM email_outbox WHERE template_name=ANY($1::text[]) AND payload->>'conversationId'=$2",
+      [['chat_handoff_admin', 'chat_message_admin', 'chat_admin_reply'], req.params.conversationId]
+    );
+    await client.query(
+      "DELETE FROM notifications WHERE audience='ADMIN' AND link_path=$1",
+      ['/#/admin/chats?id=' + req.params.conversationId]
+    );
+    await client.query('DELETE FROM chat_conversations WHERE id=$1', [req.params.conversationId]);
+    await auditLog(client, req.user.id, 'CHAT_DELETED', 'chat_conversation', req.params.conversationId, { status: found.rows[0].status });
+    return found.rows[0];
+  });
+  res.json({ deleted: true, conversationId: deleted.id });
+}));
+
+app.get('/api/admin/chats/:conversationId', requireAdmin, asyncRoute(async (req, res) => {
+  assertChatUuid(req.params.conversationId, 'conversation ID');
+  const conversation = await pool.query(
+    'SELECT c.id,c.user_id,c.visitor_name,c.visitor_email,c.status,c.requested_at,c.accepted_at,c.closed_at,c.created_at,c.updated_at,' +
+    'u.name AS account_name,u.email AS account_email FROM chat_conversations c LEFT JOIN users u ON u.id=c.user_id WHERE c.id=$1',
+    [req.params.conversationId]
+  );
+  if (!conversation.rowCount) throw new HttpError(404, 'Chat not found.');
+  res.json({ conversation: serializeChatConversation(conversation.rows[0], { admin: true }), messages: await loadChatMessages(pool, req.params.conversationId) });
+}));
+
+app.patch('/api/admin/chats/:conversationId', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  assertChatUuid(req.params.conversationId, 'conversation ID');
+  const parsed = adminChatActionSchema.safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+  const result = await withTransaction(async (client) => {
+    const found = await client.query('SELECT * FROM chat_conversations WHERE id=$1 FOR UPDATE', [req.params.conversationId]);
+    if (!found.rowCount) throw new HttpError(404, 'Chat not found.');
+    const conversation = found.rows[0];
+    if (parsed.data.action === 'accept') {
+      if (!['ADMIN_REQUESTED', 'ADMIN_ACCEPTED', 'AI_ACTIVE'].includes(conversation.status)) {
+        throw new HttpError(409, 'This chat has no pending administrator request.');
+      }
+      const updated = await client.query(
+        "UPDATE chat_conversations SET status='ADMIN_ACCEPTED',accepted_at=COALESCE(accepted_at,NOW()),updated_at=NOW() WHERE id=$1 RETURNING *",
+        [conversation.id]
+      );
+      if (conversation.status !== 'ADMIN_ACCEPTED') {
+        await client.query(
+          'INSERT INTO chat_messages (conversation_id,sender,body) VALUES ($1,$2,$3)',
+          [conversation.id, 'SYSTEM', 'A RavenX administrator joined this chat.']
+        );
+      }
+      await auditLog(client, req.user.id, 'CHAT_ACCEPTED', 'chat_conversation', conversation.id, {});
+      return updated.rows[0];
+    }
+    const updated = await client.query(
+      "UPDATE chat_conversations SET status='CLOSED',closed_at=NOW(),updated_at=NOW() WHERE id=$1 RETURNING *",
+      [conversation.id]
+    );
+    await client.query(
+      'INSERT INTO chat_messages (conversation_id,sender,body) VALUES ($1,$2,$3)',
+      [conversation.id, 'SYSTEM', 'This conversation was closed by RavenX admin.']
+    );
+    await auditLog(client, req.user.id, 'CHAT_CLOSED', 'chat_conversation', conversation.id, {});
+    return updated.rows[0];
+  });
+  res.json({ conversation: serializeChatConversation(result, { admin: true }) });
+}));
+
+app.post('/api/admin/chats/:conversationId/messages', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  assertChatUuid(req.params.conversationId, 'conversation ID');
+  const parsed = adminChatMessageSchema.safeParse(req.body);
+  if (!parsed.success) return validationError(res, parsed);
+  const saved = await withTransaction(async (client) => {
+    const result = await client.query('SELECT * FROM chat_conversations WHERE id=$1 FOR UPDATE', [req.params.conversationId]);
+    if (!result.rowCount) throw new HttpError(404, 'Chat not found.');
+    const conversation = result.rows[0];
+    if (!['ADMIN_REQUESTED', 'ADMIN_ACCEPTED', 'AI_ACTIVE'].includes(conversation.status)) throw new HttpError(409, 'This conversation is closed.');
+    const inserted = await client.query(
+      'INSERT INTO chat_messages (conversation_id,sender,body) VALUES ($1,$2,$3) RETURNING id,sender,body,feedback,created_at',
+      [conversation.id, 'ADMIN', parsed.data.message]
+    );
+    await client.query(
+      "UPDATE chat_conversations SET status='ADMIN_ACCEPTED',accepted_at=COALESCE(accepted_at,NOW()),updated_at=NOW() WHERE id=$1",
+      [conversation.id]
+    );
+    await sendAdminChatReply(client, conversation, inserted.rows[0]);
+    return inserted.rows[0];
+  });
+  res.status(201).json({ message: saved });
 }));
 
 app.post('/api/shop/orders', writeLimiter, asyncRoute(async (req, res) => {
@@ -857,6 +1198,10 @@ async function submitRegistration(req, res) {
   if (!requireDatabase(res)) return;
   const parsed = registrationSchema.safeParse(req.body);
   if (!parsed.success) return validationError(res, parsed);
+  const accountParsed = req.user ? null : registrationAccountSchema.safeParse(req.body);
+  if (accountParsed && !accountParsed.success) return validationError(res, accountParsed);
+  if (req.user?.role === 'admin') throw new HttpError(403, 'Administrator accounts cannot register as participants.');
+
   const event = await eventBySlug(req.params.slug || 'shadow-sprint-2026');
   if (!event) throw new HttpError(404, 'Event not found.');
   if (!event.registration_open) throw new HttpError(409, 'Registration is currently closed.');
@@ -867,13 +1212,44 @@ async function submitRegistration(req, res) {
   if (!Number.isFinite(fee) || fee < 0) throw new HttpError(400, 'Choose a registration category offered by this event.');
   const paymentMethods = Array.isArray(metadata.payment_methods) ? metadata.payment_methods : ['Bkash', 'Nagad', 'Rocket'];
   if (!paymentMethods.includes(parsed.data.payment_method)) throw new HttpError(400, 'Choose a payment method offered by this event.');
+
+  const accountData = accountParsed?.data;
+  const email = req.user ? req.user.email : accountData.email.toLowerCase();
+  let participant = req.user || null;
+  let accountCreated = false;
   try {
     const registration = await withTransaction(async (client) => {
-      await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [req.user.id]);
+      if (!participant) {
+        const existing = await client.query(
+          'SELECT id FROM users WHERE LOWER(email)=LOWER($1) FOR UPDATE',
+          [email]
+        );
+        if (existing.rowCount) {
+          throw new HttpError(409, 'This email already has a RavenX account. Sign in first, or use Forgot password if needed.');
+        }
+        const passwordHash = await bcrypt.hash(accountData.password, 12);
+        const created = await client.query(
+          'INSERT INTO users (name,email,phone,password_hash,role) VALUES ($1,$2,$3,$4,$5) ' +
+          'RETURNING id,name,email,phone,role,created_at',
+          [accountData.name, email, accountData.phone, passwordHash, 'participant']
+        );
+        participant = created.rows[0];
+        accountCreated = true;
+        await participantNotification(
+          client, participant.id, null, 'Welcome to RavenX',
+          'Your RavenX account was created with your event registration.', '/#/dashboard'
+        );
+      }
+
+      const lockedParticipant = await client.query(
+        'SELECT id FROM users WHERE id=$1 FOR UPDATE',
+        [participant.id]
+      );
+      if (!lockedParticipant.rowCount) throw new HttpError(401, 'Your account is no longer available. Sign in again.');
       const duplicate = await client.query(
         'SELECT 1 FROM registrations WHERE user_id=$1 AND event_id=$2 ' +
         'AND registration_status IN ($3,$4) AND ($5::boolean=FALSE OR selected_distance=$6) LIMIT 1',
-        [req.user.id, event.id, 'PENDING_APPROVAL', 'APPROVED', event.allow_multiple_registrations, parsed.data.distance]
+        [participant.id, event.id, 'PENDING_APPROVAL', 'APPROVED', event.allow_multiple_registrations, parsed.data.distance]
       );
       if (duplicate.rowCount) {
         throw new HttpError(409, event.allow_multiple_registrations
@@ -893,7 +1269,7 @@ async function submitRegistration(req, res) {
         'VALUES (gen_random_uuid(),$1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$11,$12,$13,$14,CASE WHEN $15::boolean THEN NOW() ELSE NULL END) ' +
         'RETURNING platform_id,created_at,bib_number,registration_status',
         [
-          req.user.id, event.id, req.user.name, req.user.email, req.user.phone,
+          participant.id, event.id, participant.name, participant.email, participant.phone,
           parsed.data.distance, parsed.data.category, parsed.data.gender,
           parsed.data.payment_method, parsed.data.payment_number, parsed.data.transaction_id,
           fee, status, bib, !requiresApproval
@@ -902,17 +1278,29 @@ async function submitRegistration(req, res) {
       const row = inserted.rows[0];
       const link = '/#/my-events/' + row.platform_id;
       if (status === 'PENDING_APPROVAL') {
-        await participantNotification(client, req.user.id, row.platform_id, 'Registration submitted', 'Your registration is waiting for administrator approval.', link);
+        await participantNotification(client, participant.id, row.platform_id, 'Registration submitted', 'Your registration is waiting for administrator approval.', link);
       } else {
-        await participantNotification(client, req.user.id, row.platform_id, 'Registration approved', 'Your registration was automatically approved.' + (bib ? ' Your BIB is ' + bib + '.' : ''), link);
-        if (bib) await participantNotification(client, req.user.id, row.platform_id, 'BIB assigned', 'Your BIB number is ' + bib + '.', link);
-        await enqueueEmail(client, req.user.email, 'registration_approved', {
-          name: req.user.name, bib: bib || 'Pending assignment', eventName: event.name
+        await participantNotification(client, participant.id, row.platform_id, 'Registration approved', 'Your registration was automatically approved.' + (bib ? ' Your BIB is ' + bib + '.' : ''), link);
+        if (bib) await participantNotification(client, participant.id, row.platform_id, 'BIB assigned', 'Your BIB number is ' + bib + '.', link);
+        await enqueueEmail(client, participant.email, 'registration_approved', {
+          name: participant.name, bib: bib || 'Pending assignment', eventName: event.name
         });
       }
-      await adminNotification(client, row.platform_id, 'New registration', req.user.name + ' registered for ' + event.name + '.', '/#/admin/registrations');
+
+      if (accountCreated) {
+        await enqueueEmail(client, participant.email, 'registration_account_created', {
+          name: participant.name, eventName: event.name, registrationId: row.platform_id,
+          distance: parsed.data.distance, status, bib: row.bib_number || ''
+        });
+      } else if (status === 'PENDING_APPROVAL') {
+        await enqueueEmail(client, participant.email, 'registration_received', {
+          name: participant.name, eventName: event.name, registrationId: row.platform_id,
+          distance: parsed.data.distance
+        });
+      }
+      await adminNotification(client, row.platform_id, 'New registration', participant.name + ' registered for ' + event.name + '.', '/#/admin/registrations');
       const mailData = {
-        name: req.user.name, email: req.user.email, phone: req.user.phone,
+        name: participant.name, email: participant.email, phone: participant.phone,
         registrationId: row.platform_id, distance: parsed.data.distance,
         paymentMethod: parsed.data.payment_method, transactionId: parsed.data.transaction_id,
         submittedAt: safeDate(row.created_at), eventName: event.name, status,
@@ -921,28 +1309,35 @@ async function submitRegistration(req, res) {
       await enqueueEmail(client, ADMIN_EMAIL, 'registration_admin', mailData);
       return row;
     });
-    sendMetaConversion(req, req.user, fee, registration.platform_id).catch((error) => {
+
+    if (accountCreated) await establishSession(req, participant.id, false);
+    sendMetaConversion(req, participant, fee, registration.platform_id).catch((error) => {
       console.error('Meta conversion notification failed', { code: error.code || 'UNKNOWN' });
     });
-    res.status(201).json({
+    const response = {
       registrationId: registration.platform_id,
       status: registration.registration_status,
       bibNumber: registration.bib_number,
+      accountCreated,
       message: registration.registration_status === 'APPROVED'
         ? 'Registration approved.' + (registration.bib_number ? ' Your BIB is ' + registration.bib_number + '.' : '')
-        : 'Registration submitted and waiting for approval.'
-    });
+        : 'Registration submitted and waiting for administrator approval.'
+    };
+    if (accountCreated) {
+      response.user = safeUser(participant);
+      response.csrfToken = req.session.csrfToken;
+    }
+    res.status(201).json(response);
   } catch (error) {
-    if (uploaded?.publicId) {
-      const { deleteAsset } = require('./src/storage');
-      await deleteAsset(uploaded.publicId, 'image', 'authenticated').catch(() => {});
+    if (error.code === '23505') {
+      throw new HttpError(409, 'This email already has a RavenX account. Sign in first, or use Forgot password if needed.');
     }
     throw error;
   }
 }
 
-app.post('/api/events/:slug/registrations', requireAuth, writeLimiter, formFieldsOnly, asyncRoute(submitRegistration));
-app.post('/api/register', requireAuth, writeLimiter, formFieldsOnly, asyncRoute(submitRegistration));
+app.post('/api/events/:slug/registrations', writeLimiter, formFieldsOnly, optionalAuth, asyncRoute(submitRegistration));
+app.post('/api/register', writeLimiter, formFieldsOnly, optionalAuth, asyncRoute(submitRegistration));
 
 function sendMetaConversion(req, user, fee, registrationId) {
   const pixelId = process.env.META_PIXEL_ID;
@@ -1275,6 +1670,33 @@ app.patch('/api/me/notifications/:id/read', requireAuth, asyncRoute(async (req, 
 app.post('/api/me/notifications/read-all', requireAuth, asyncRoute(async (req, res) => {
   await pool.query('UPDATE notifications SET is_read=TRUE WHERE user_id=$1 AND audience=$2', [req.user.id, 'PARTICIPANT']);
   res.json({ ok: true });
+}));
+
+app.get('/api/admin/analytics', requireAdmin, asyncRoute(async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const days = Number(req.query.days || 30);
+  if (![7, 30, 90].includes(days)) throw new HttpError(400, 'Choose a 7, 30, or 90 day range.');
+  const [summary, daily, recent] = await Promise.all([
+    pool.query(
+      'SELECT COUNT(*)::int AS total_visits,COUNT(DISTINCT visitor_hash)::int AS anonymous_visitors,' +
+      'COALESCE(ROUND(AVG(duration_seconds)),0)::int AS average_seconds,COALESCE(SUM(duration_seconds),0)::bigint AS total_seconds ' +
+      'FROM site_analytics_visits WHERE started_at>=NOW()-($1::int*INTERVAL \'1 day\')',
+      [days]
+    ),
+    pool.query(
+      "SELECT TO_CHAR((started_at AT TIME ZONE 'Asia/Dhaka')::date,'YYYY-MM-DD') AS visit_date,COUNT(*)::int AS visits," +
+      'COUNT(DISTINCT visitor_hash)::int AS visitors,COALESCE(ROUND(AVG(duration_seconds)),0)::int AS average_seconds ' +
+      "FROM site_analytics_visits WHERE started_at>=NOW()-($1::int*INTERVAL '1 day') " +
+      "GROUP BY (started_at AT TIME ZONE 'Asia/Dhaka')::date ORDER BY (started_at AT TIME ZONE 'Asia/Dhaka')::date DESC",
+      [days]
+    ),
+    pool.query(
+      "SELECT 'Visitor-'||LEFT(visitor_hash,8) AS visitor_label,page_path,started_at,duration_seconds,last_activity_at " +
+      'FROM site_analytics_visits WHERE started_at>=NOW()-($1::int*INTERVAL \'1 day\') ORDER BY started_at DESC LIMIT 100',
+      [days]
+    )
+  ]);
+  res.json({ days, summary: summary.rows[0], daily: daily.rows, recent: recent.rows });
 }));
 
 app.get('/api/admin/summary', requireAdmin, asyncRoute(async (req, res) => {

@@ -83,6 +83,42 @@ function template(name, data = {}) {
       subject: 'Welcome to RavenX',
       html: '<p>Hi ' + v.name + ', your RavenX account is ready.</p>' + emailButton(userUrl, 'Open your dashboard')
     },
+    registration_account_created: {
+      subject: 'Your RavenX account and registration',
+      html: '<p>Hi ' + v.name + ', your RavenX account was created automatically with your event registration.</p>'
+        + '<dl><dt>Event</dt><dd>' + v.eventName + '</dd><dt>Distance</dt><dd>' + v.distance + '</dd>'
+        + '<dt>Registration ID</dt><dd>' + v.registrationId + '</dd><dt>Status</dt><dd>' + (v.status || 'PENDING APPROVAL').replaceAll('_', ' ') + '</dd>'
+        + (data.bib ? '<dt>BIB</dt><dd>' + v.bib + '</dd>' : '') + '</dl>'
+        + '<p>Use the email address and the password you chose during registration to sign in. For your security, RavenX never emails passwords.</p>'
+        + emailButton(userUrl, 'Open My Events')
+    },
+    registration_received: {
+      subject: 'Registration received – ' + (data.eventName || 'RavenX event'),
+      html: '<p>Hi ' + v.name + ', we received your registration for ' + v.eventName + '.</p>'
+        + '<dl><dt>Distance</dt><dd>' + v.distance + '</dd><dt>Registration ID</dt><dd>' + v.registrationId + '</dd></dl>'
+        + '<p>Your request is pending administrator review. We’ll email you when its status changes.</p>'
+        + emailButton(userUrl, 'Open My Events')
+    },
+    chat_handoff_admin: {
+      subject: 'RavenX chat request from ' + (data.name || 'a visitor'),
+      html: '<p>' + v.name + ' requested a reply from the RavenX administrator.</p>'
+        + '<dl><dt>Contact email</dt><dd>' + v.email + '</dd><dt>Conversation</dt><dd>' + v.conversationId + '</dd></dl>'
+        + emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open chat inbox')
+    },
+    chat_message_admin: {
+      subject: 'New RavenX message from ' + (data.name || 'a visitor'),
+      html: '<p>A visitor sent a message to RavenX support. Reply from the admin chat inbox.</p><dl>'
+        + '<dt>Name</dt><dd>' + v.name + '</dd><dt>Email</dt><dd>' + v.email + '</dd>'
+        + '<dt>Message</dt><dd style="white-space:pre-wrap">' + v.message + '</dd></dl>'
+        + emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open and reply')
+    },
+    chat_admin_reply: {
+      subject: 'A new reply from RavenX',
+      html: '<p>Hi ' + v.name + ', a RavenX administrator replied to your message.</p>'
+        + '<blockquote style="margin:18px 0;padding:14px 18px;border-left:3px solid #e9691c;background:#f7f5f0">' + v.message + '</blockquote>'
+        + '<p>Open RavenX on the same browser you used for your chat to continue the conversation.</p>'
+        + emailButton(base + '/#/', 'Open RavenX')
+    },
     registration_approved: {
       subject: 'Registration approved – ' + (data.eventName || 'Shadow Sprint Run 2026'),
       html: '<p>Hi ' + v.name + ', your registration is approved.</p><p>Your BIB is <strong>' + v.bib + '</strong>.</p>' + emailButton(userUrl, 'Open My Events')

@@ -29,6 +29,18 @@
   let csrfToken = null;
   let passwordResetEmail = '';
   let toastTimer;
+  let chatConversation = null;
+  let chatMessages = [];
+  let chatOpen = false;
+  let chatError = '';
+  let chatPollTimer = null;
+  let chatDraft = '';
+  let chatContactDraft = { name: '', email: '' };
+  let analyticsCurrentVisitId = null;
+  let analyticsPageStartedAt = 0;
+  let analyticsLastPath = null;
+  let analyticsQueue = Promise.resolve();
+  let analyticsDataVisible = true;
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const date = (value, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
@@ -37,6 +49,13 @@
     return Number.isNaN(d.getTime()) ? esc(value) : new Intl.DateTimeFormat('en', options).format(d);
   };
   const money = (value) => `৳${new Intl.NumberFormat('en-BD').format(Number(value || 0))}`;
+  const durationText = (value) => {
+    const seconds = Math.max(0, Number(value || 0));
+    if (seconds < 60) return seconds + ' sec';
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return minutes >= 60 ? Math.floor(minutes / 60) + ' hr ' + (minutes % 60) + ' min' : minutes + ' min ' + remainder + ' sec';
+  };
   const statusPill = (value) => {
     const normalized = String(value || 'PENDING').toLowerCase().replaceAll('_', ' ');
     return `<span class="pill pill-status ${esc(normalized.split(' ')[0])}">${esc(normalized)}</span>`;
@@ -48,9 +67,20 @@
   };
   const link = (href, label, cls = '') => `<a class="${cls}" href="#${href}">${label}</a>`;
 
+  async function fetchRavenX(path, options) {
+    try {
+      return await fetch(path, options);
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error('RavenX could not reach its server from this page. Keep the local server running and open http://localhost:3000.');
+      }
+      throw error;
+    }
+  }
+
   async function csrf() {
     if (csrfToken) return csrfToken;
-    const response = await fetch('/api/csrf-token', { credentials: 'same-origin' });
+    const response = await fetchRavenX('/api/csrf-token', { credentials: 'same-origin' });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || 'Unable to start a secure session.');
     csrfToken = body.csrfToken;
@@ -66,7 +96,7 @@
       body = JSON.stringify(body);
     }
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) headers.set('X-CSRF-Token', await csrf());
-    const response = await fetch(path, { ...options, method, body, headers, credentials: 'same-origin' });
+    const response = await fetchRavenX(path, { ...options, method, body, headers, credentials: 'same-origin' });
     const contentType = response.headers.get('content-type') || '';
     const result = contentType.includes('application/json') ? await response.json() : null;
     if (!response.ok) {
@@ -84,6 +114,34 @@
     } catch {
       user = null;
     }
+  }
+
+  async function reportAnalyticsDuration(keepalive = false) {
+    if (!analyticsCurrentVisitId || !analyticsPageStartedAt) return;
+    const seconds = Math.min(86400, Math.max(0, Math.floor((Date.now() - analyticsPageStartedAt) / 1000)));
+    if (!seconds) return;
+    try {
+      await api('/api/analytics/visits/' + encodeURIComponent(analyticsCurrentVisitId), {
+        method: 'PATCH', body: { durationSeconds: seconds }, keepalive
+      });
+    } catch { /* Analytics must never interrupt page navigation or chat. */ }
+  }
+
+  function trackAnalyticsPage(path) {
+    const isPublicPage = user?.role !== 'admin' && /^\/(?:|events(?:\/[a-z0-9][a-z0-9-]*)?|shop)$/i.test(path);
+    if (analyticsLastPath === path) return;
+    analyticsLastPath = path;
+    analyticsQueue = analyticsQueue.then(async () => {
+      await reportAnalyticsDuration(true);
+      analyticsCurrentVisitId = null;
+      analyticsPageStartedAt = 0;
+      if (!isPublicPage) return;
+      try {
+        const result = await api('/api/analytics/visits', { method: 'POST', body: { pagePath: path } });
+        analyticsCurrentVisitId = result.visitId;
+        analyticsPageStartedAt = Date.now();
+      } catch { /* Analytics is optional; keep the public site available if it fails. */ }
+    }).catch(() => {});
   }
 
   function notify(message) {
@@ -115,14 +173,106 @@
   }
 
   function footer() {
-    return `<footer class="site-footer"><div class="page-wrap footer-inner"><div><strong>RAVENX</strong><div>Fly Like Raven</div><small>© ${new Date().getFullYear()} RavenX Bangladesh</small></div><div class="footer-links"><a href="#/events">Events</a><a href="#/shop">Shop</a><a href="https://www.facebook.com/ravenxofficialbd" target="_blank" rel="noreferrer">Facebook</a><a href="https://www.facebook.com/share/g/19TkYk8Mph/" target="_blank" rel="noreferrer">Community group</a><a href="mailto:ravenxbdofficial@gmail.com">Contact</a><a href="https://wa.me/8801805749874">WhatsApp</a></div></div></footer>`;
+    return `<footer class="site-footer"><div class="page-wrap footer-inner"><div><strong>RAVENX</strong><div>Fly Like Raven</div><small>© ${new Date().getFullYear()} RavenX Bangladesh</small><small>Anonymous page visit and time-spent analytics help us improve the site.</small></div><div class="footer-links"><a href="#/events">Events</a><a href="#/shop">Shop</a><a href="https://www.facebook.com/ravenxofficialbd" target="_blank" rel="noreferrer">Facebook</a><a href="https://www.facebook.com/share/g/19TkYk8Mph/" target="_blank" rel="noreferrer">Community group</a><a href="mailto:ravenxbdofficial@gmail.com">Contact</a><a href="https://wa.me/8801805749874">WhatsApp</a></div></div></footer>`;
   }
 
   function layout(content, active = '') {
     app.querySelectorAll('[data-local-image][data-object-url]').forEach((input) => URL.revokeObjectURL(input.dataset.objectUrl));
     app.innerHTML = `${publicHeader(active)}<main id="main">${content}</main>${footer()}`;
+    app.insertAdjacentHTML('beforeend', chatWidget());
     syncPaymentDetails();
     syncStudentIdRequirement();
+  }
+
+  function chatMessageView(message) {
+    const kind = String(message.sender || '').toLowerCase();
+    const label = kind === 'ai' ? 'RavenX support' : kind === 'admin' ? 'RavenX admin' : kind === 'system' ? 'Update' : 'You';
+    const messageClass = kind === 'ai' ? 'support' : kind;
+    return '<article class="chat-message ' + messageClass + '"><small>' + label + '</small><div>' + esc(message.body).replace(/\n/g, '<br>') + '</div></article>';
+  }
+
+  function chatMessagesMarkup() {
+    const messages = chatMessages.length
+      ? chatMessages.map(chatMessageView).join('')
+      : '<article class="chat-message support"><small>RavenX support</small><div>Send a message and the RavenX admin will reply here.</div></article>';
+    return messages + (chatError ? '<div class="chat-error">' + esc(chatError) + '</div>' : '');
+  }
+
+  function chatRenderState() {
+    return [chatConversation?.status || 'ADMIN_REQUESTED', chatOpen ? 'open' : 'closed', user?.role || 'guest', Boolean(!user && (!chatConversation?.visitorName || !chatConversation?.visitorEmail))].join(':');
+  }
+
+  function chatWidget() {
+    if (user?.role === 'admin') return '';
+    const status = chatConversation?.status || 'ADMIN_REQUESTED';
+    const statusLabel = status === 'ADMIN_REQUESTED' ? 'Messages go directly to RavenX admin'
+      : status === 'ADMIN_ACCEPTED' ? 'Chatting with RavenX admin'
+        : status === 'CLOSED' ? 'Chat closed' : 'Message RavenX admin';
+    const needsContact = !user && (!chatConversation?.visitorName || !chatConversation?.visitorEmail);
+    const disabled = status === 'CLOSED';
+    return '<div id="chat-root" class="chat-widget ' + (chatOpen ? 'open' : '') + '" data-render-state="' + esc(chatRenderState()) + '">' +
+      '<button class="chat-launcher" type="button" data-action="toggle-chat" aria-expanded="' + String(chatOpen) + '" aria-label="' + (chatOpen ? 'Close' : 'Open') + ' RavenX chat"><span>✦</span><strong>' + (chatOpen ? 'Close chat' : 'Chat with Raven') + '</strong></button>' +
+      '<section class="chat-panel" aria-label="RavenX admin text support" ' + (chatOpen ? '' : 'hidden') + '>' +
+      '<header class="chat-header"><div><strong>RavenX support</strong><small>' + statusLabel + '</small></div><button type="button" data-action="toggle-chat" aria-label="Close chat">×</button></header>' +
+      '<div class="chat-privacy">Text only · Please don’t send passwords, PINs, images, or voice notes.</div>' +
+      '<div class="chat-messages" role="log" aria-live="polite">' + chatMessagesMarkup() + '</div>' +
+      '<form class="chat-composer" data-form="chat-message">' +
+      (needsContact ? '<label class="visually-hidden" for="chat-contact-name">Your name</label><input class="input" id="chat-contact-name" name="name" autocomplete="name" placeholder="Your name" value="' + esc(chatContactDraft.name) + '" minlength="2" maxlength="100" required><label class="visually-hidden" for="chat-contact-email">Enter your email</label><input class="input" id="chat-contact-email" name="email" type="email" autocomplete="email" placeholder="Enter your email" value="' + esc(chatContactDraft.email) + '" maxlength="254" required>' : '') +
+      '<label class="visually-hidden" for="raven-chat-input">Message RavenX admin</label><textarea id="raven-chat-input" name="message" rows="2" maxlength="2000" placeholder="Message RavenX admin…" ' + (disabled ? 'disabled' : '') + ' required>' + esc(chatDraft) + '</textarea><button class="button button-primary button-small" type="submit" ' + (disabled ? 'disabled' : '') + '>Send</button><div class="error-text" data-error></div></form>' +
+      (status === 'CLOSED' ? '<button class="chat-human-link" type="button" data-action="new-chat">Start a new chat</button>' : '') +
+      '</section></div>';
+  }
+
+  function renderChatWidget() {
+    const current = document.getElementById('chat-root');
+    if (!current) return;
+    if (current.dataset.renderState === chatRenderState()) {
+      const messages = current.querySelector('.chat-messages');
+      if (messages) messages.innerHTML = chatMessagesMarkup();
+      if (chatOpen && messages) messages.scrollTop = messages.scrollHeight;
+      return;
+    }
+    const active = current.contains(document.activeElement) ? document.activeElement : null;
+    const activeId = active?.id || '';
+    const selection = active && typeof active.selectionStart === 'number'
+      ? { start: active.selectionStart, end: active.selectionEnd, direction: active.selectionDirection }
+      : null;
+    current.outerHTML = chatWidget();
+    if (activeId) {
+      const replacement = document.getElementById(activeId);
+      if (replacement) {
+        replacement.focus({ preventScroll: true });
+        if (selection && typeof replacement.setSelectionRange === 'function') {
+          replacement.setSelectionRange(selection.start, selection.end, selection.direction);
+        }
+      }
+    }
+    if (chatOpen) {
+      const messages = document.querySelector('#chat-root .chat-messages');
+      if (messages) messages.scrollTop = messages.scrollHeight;
+    }
+  }
+
+  async function refreshChat({ quiet = false } = {}) {
+    try {
+      const result = await api('/api/chat/conversation');
+      chatConversation = result.conversation || null;
+      chatMessages = result.messages || [];
+      if (!quiet) chatError = '';
+    } catch (error) {
+      chatError = error.message || 'Chat is temporarily unavailable.';
+      if (!quiet) chatMessages = [];
+    }
+    if (chatOpen) renderChatWidget();
+  }
+
+  function scheduleChatPoll() {
+    clearTimeout(chatPollTimer);
+    if (!chatOpen) return;
+    chatPollTimer = setTimeout(async () => {
+      await refreshChat({ quiet: true });
+      scheduleChatPoll();
+    }, 7000);
   }
 
   function syncPaymentDetails() {
@@ -216,27 +366,27 @@
     const feeCategories = Object.entries(fees).filter(([, value]) => typeof value === 'number' && Number.isFinite(value));
     const paymentMethods = metadata.payment_methods || ['Bkash', 'Nagad', 'Rocket'];
     const paymentAccounts = metadata.payment_accounts || {};
-    if (event.workflow?.registrationOpen === false || event.workflow?.registration_open === false) return '<div class="notice">Registration is currently closed for this event.</div>';
-    if (!user) return `<div class="notice">Sign in or create a RavenX account to register. ${link('/login','Sign in')} · ${link('/signup','Create account')}</div>`;
-    if (user.role === 'admin') return `<div class="notice">You are signed in as an administrator. Participant registrations are submitted from a participant account.</div>`;
+    if (event.workflow?.registrationOpen === false || event.workflow?.registration_open === false) return '<div class=\'notice\'>Registration is currently closed for this event.</div>';
+    if (user?.role === 'admin') return '<div class=\'notice\'>You are signed in as an administrator. Participant registrations are submitted from a participant account.</div>';
     const studentIdCategories = metadata.student_id_categories || EVENT.metadata.student_id_categories;
     const earlyBird = metadata.early_bird || {};
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
     const earlyBirdActive = Boolean(earlyBird.valid_until && earlyBird.valid_until >= today);
     const categoryFee = (category, base) => Math.max(0, Number(base) - (earlyBirdActive ? Number(earlyBird[category + '_discount_tk'] || 0) : 0));
-    return `<form class="registration-form" data-form="registration" data-event-slug="${esc(event.slug || EVENT.slug)}" data-student-id-categories="${esc(JSON.stringify(studentIdCategories))}" enctype="multipart/form-data">
-      <h2>Register for ${esc(event.name || EVENT.name)}</h2><p>${event.workflow?.registrationRequiresApproval === false ? 'Submit your registration to join this event.' : 'Your request will appear under Pending Registrations until an administrator reviews it.'}</p>
-      <div class="form-grid"><div class="form-field"><label for="reg-name">Participant</label><input class="input" id="reg-name" value="${esc(user.name)}" readonly></div><div class="form-field"><label for="reg-email">Email</label><input class="input" id="reg-email" value="${esc(user.email)}" readonly></div><div class="form-field"><label for="reg-phone">Phone / WhatsApp</label><input class="input" id="reg-phone" type="tel" value="${esc(user.phone || "")}" readonly></div></div>
-      <span class="form-label">Choose your distance and medal</span><div class="distance-select">${distances.map((item,i)=>`<label class="distance-option"><input type="radio" name="distance" value="${esc(item.value)}" ${i===0?'checked':''} required><img src="${esc(item.medal_image || EVENT.bannerUrl)}" alt="${esc(item.label || item.value)} ${esc(item.category || '')} medal"><span class="distance-option-copy"><strong>${esc(item.label || item.value)}</strong><small>${esc(item.category || 'DISTANCE')}</small></span></label>`).join('')}</div>
-      <div class="form-grid"><div class="form-field full"><span class="form-label">Registration fee</span><div class="category-options">${feeCategories.map(([category,amount],index)=>{const finalFee=categoryFee(category,amount);return `<label class="category-option"><input type="radio" name="category" value="${esc(category)}" ${index===feeCategories.length-1?'checked':''} required> ${esc(category[0].toUpperCase()+category.slice(1))} · ${money(finalFee)}${finalFee<amount?` <del>${money(amount)}</del>`:''}</label>`;}).join('')}</div><small class="help-text">${earlyBirdActive ? 'Early-bird prices valid through ' + date(earlyBird.valid_until) + '. ' : ''}${fees.courier_charge_applies ? 'Courier charge applies. ' : ''}Student pricing requires selecting an ID image in this browser.</small></div>
-      <div class="form-field full" data-student-id-field hidden><label for="student-id-image">Student ID image</label><input class="input" id="student-id-image" type="file" accept="image/*" data-local-image data-image-preview="student-id-preview"><small class="help-text">Choose any image of your student ID. It is previewed here only and is never sent or stored.</small><img class="local-image-preview" id="student-id-preview" alt="Local student ID image preview" hidden></div>
-      
-      <div class="form-field"><label for="gender">Gender</label><select class="select" id="gender" name="gender" required><option value="">Choose</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
-      <div class="form-field"><label for="payment-method">Payment method</label><select class="select" id="payment-method" name="payment_method" required>${paymentMethods.map((method,index)=>`<option ${index===0?'selected':''}>${esc(method)}</option>`).join('')}</select></div>
-      <div class="form-field full"><span class="form-label">Send payment to</span><div class="payment-help" data-payment-accounts="${esc(JSON.stringify(paymentAccounts))}"><strong data-payment-number></strong><button class="button button-quiet button-small" type="button" data-action="copy-payment">Copy number</button></div></div>
-      <div class="form-field"><label for="payment-number">Payment sender number</label><input class="input" id="payment-number" name="payment_number" type="tel" minlength="8" maxlength="32" placeholder="01XXXXXXXXX" required></div>
-      <div class="form-field"><label for="transaction-id">Transaction ID</label><input class="input" id="transaction-id" name="transaction_id" minlength="3" maxlength="100" required></div></div>
-      <div class="notice">By submitting, you confirm your payment details. ${event.workflow?.registrationRequiresApproval === false ? 'Registration will follow this event’s automatic approval workflow.' : 'Registration is pending until RavenX review.'}</div><button class="button button-primary auth-submit" type="submit">Register Now</button><div class="error-text" data-error></div></form>`;
+    const participantFields = user
+      ? `<div class='form-grid'><div class='form-field'><label for='reg-name'>Participant</label><input class='input' id='reg-name' name='name' value='${esc(user.name)}' readonly required></div><div class='form-field'><label for='reg-email'>Email</label><input class='input' id='reg-email' name='email' type='email' value='${esc(user.email)}' readonly required></div><div class='form-field'><label for='reg-phone'>Phone / WhatsApp</label><input class='input' id='reg-phone' name='phone' type='tel' value='${esc(user.phone || '')}' readonly required></div></div>`
+      : `<div class='form-grid'><div class='form-field'><label for='reg-name'>Full name</label><input class='input' id='reg-name' name='name' autocomplete='name' minlength='2' maxlength='100' required></div><div class='form-field'><label for='reg-email'>Email address</label><input class='input' id='reg-email' name='email' type='email' autocomplete='email' maxlength='254' required></div><div class='form-field'><label for='reg-phone'>Phone / WhatsApp</label><input class='input' id='reg-phone' name='phone' type='tel' autocomplete='tel' minlength='6' maxlength='32' required></div><div class='form-field'><label for='reg-password'>Choose a login password</label><input class='input' id='reg-password' name='password' type='password' autocomplete='new-password' minlength='8' maxlength='128' required></div><div class='form-field'><label for='reg-confirm-password'>Confirm password</label><input class='input' id='reg-confirm-password' name='confirmPassword' type='password' autocomplete='new-password' minlength='8' maxlength='128' required></div><div class='form-field full'><small class='help-text'>Your RavenX account will be created when you submit this registration. Use this password for future sign-ins.</small></div></div>`;
+    return `<form class='registration-form' data-form='registration' data-event-slug='${esc(event.slug || EVENT.slug)}' data-student-id-categories='${esc(JSON.stringify(studentIdCategories))}' enctype='multipart/form-data'>
+      <h2>Register for ${esc(event.name || EVENT.name)}</h2><p>${user ? (event.workflow?.registrationRequiresApproval === false ? 'Submit your registration to join this event.' : 'Your request will appear under Pending Registrations until an administrator reviews it.') : 'Register without creating an account first. Your RavenX account will be created with this registration.'}</p>
+      ${participantFields}
+      <span class='form-label'>Choose your distance and medal</span><div class='distance-select'>${distances.map((item,i)=>`<label class='distance-option'><input type='radio' name='distance' value='${esc(item.value)}' ${i===0?'checked':''} required><img src='${esc(item.medal_image || EVENT.bannerUrl)}' alt='${esc(item.label || item.value)} ${esc(item.category || '')} medal'><span class='distance-option-copy'><strong>${esc(item.label || item.value)}</strong><small>${esc(item.category || 'DISTANCE')}</small></span></label>`).join('')}</div>
+      <div class='form-grid'><div class='form-field full'><span class='form-label'>Registration fee</span><div class='category-options'>${feeCategories.map(([category,amount],index)=>{const finalFee=categoryFee(category,amount);return `<label class='category-option'><input type='radio' name='category' value='${esc(category)}' ${index===feeCategories.length-1?'checked':''} required> ${esc(category[0].toUpperCase()+category.slice(1))} · ${money(finalFee)}${finalFee<amount?` <del>${money(amount)}</del>`:''}</label>`;}).join('')}</div><small class='help-text'>${earlyBirdActive ? 'Early-bird prices valid through ' + date(earlyBird.valid_until) + '. ' : ''}${fees.courier_charge_applies ? 'Courier charge applies. ' : ''}Student pricing requires selecting an ID image in this browser.</small></div>
+      <div class='form-field full' data-student-id-field hidden><label for='student-id-image'>Student ID image</label><input class='input' id='student-id-image' type='file' accept='image/*' data-local-image data-image-preview='student-id-preview'><small class='help-text'>Choose any image of your student ID. It is previewed here only and is never sent or stored.</small><img class='local-image-preview' id='student-id-preview' alt='Local student ID image preview' hidden></div>
+      <div class='form-field'><label for='gender'>Gender</label><select class='select' id='gender' name='gender' required><option value=''>Choose</option><option value='male'>Male</option><option value='female'>Female</option><option value='other'>Other</option></select></div>
+      <div class='form-field'><label for='payment-method'>Payment method</label><select class='select' id='payment-method' name='payment_method' required>${paymentMethods.map((method,index)=>`<option ${index===0?'selected':''}>${esc(method)}</option>`).join('')}</select></div>
+      <div class='form-field full'><span class='form-label'>Send payment to</span><div class='payment-help' data-payment-accounts='${esc(JSON.stringify(paymentAccounts))}'><strong data-payment-number></strong><button class='button button-quiet button-small' type='button' data-action='copy-payment'>Copy number</button></div></div>
+      <div class='form-field'><label for='payment-number'>Payment sender number</label><input class='input' id='payment-number' name='payment_number' type='tel' minlength='8' maxlength='32' placeholder='01XXXXXXXXX' required></div><div class='form-field'><label for='transaction-id'>Transaction ID</label><input class='input' id='transaction-id' name='transaction_id' minlength='3' maxlength='100' required></div></div>
+      <div class='notice'>By submitting, you confirm your payment details. ${event.workflow?.registrationRequiresApproval === false ? 'Registration will follow this event’s automatic approval workflow.' : 'Registration is pending until RavenX review.'}</div><button class='button button-primary auth-submit' type='submit'>Register Now</button><div class='error-text' data-error></div></form>`;
   }
 
   async function renderEvent() {
@@ -295,14 +445,14 @@
 
   function dashSidebar(active) {
     const links = user.role === 'admin'
-      ? [['/admin','◈','Overview'],['/admin/events','◉','Events & details'],['/admin/registrations','▤','Registrations'],['/admin/submissions','↗','Run submissions'],['/admin/shop-products','▦','Shop items'],['/admin/shop-orders','▣','Shop delivery'],['/admin/notifications','◉','Notifications']]
+      ? [['/admin','◈','Overview'],['/admin/events','◉','Events & details'],['/admin/registrations','▤','Registrations'],['/admin/submissions','↗','Run submissions'],['/admin/chats','✦','Chat inbox'],['/admin/analytics','◷','Visitor analytics'],['/admin/shop-products','▦','Shop items'],['/admin/shop-orders','▣','Shop delivery'],['/admin/notifications','◉','Notifications']]
       : [['/dashboard','◈','Overview'],['/my-events','◫','My Events'],['/certificates','◇','Certificates'],['/notifications','◉','Notifications'],['/profile','◎','Profile']];
     return `<aside class="dashboard-sidebar"><div class="sidebar-user"><span class="avatar">${esc((user.name || 'R').slice(0,1).toUpperCase())}</span><div><strong>${esc(user.name)}</strong><small>${user.role === 'admin' ? 'Administrator' : 'Participant'}</small></div></div><div class="sidebar-label">Workspace</div><nav class="sidebar-nav">${links.map(([href,icon,label])=>`<a class="${active === href ? 'active' : ''}" href="#${href}"><span class="nav-icon">${icon}</span>${label}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="sidebar-nav"><button type="button" data-action="logout"><span class="nav-icon">↪</span>Log out</button></div></div></aside>`;
   }
 
   function mobileDashNav(active) {
     const links = user.role === 'admin'
-      ? [['/admin','◈','Home'],['/admin/events','◉','Events'],['/admin/registrations','▤','Registrations'],['/admin/shop-products','▦','Items'],['/admin/shop-orders','▣','Orders']]
+      ? [['/admin','◈','Home'],['/admin/events','◉','Events'],['/admin/registrations','▤','Registrations'],['/admin/chats','✦','Chats'],['/admin/analytics','◷','Visitors'],['/admin/shop-orders','▣','Orders']]
       : [['/dashboard','◈','Home'],['/my-events','◫','Events'],['/certificates','◇','Awards'],['/notifications','◉','Alerts']];
     return `<nav class="mobile-bottom-nav" aria-label="Dashboard navigation">${links.map(([href,icon,label])=>`<a class="${active === href ? 'active' : ''}" href="#${href}"><span class="nav-icon">${icon}</span>${label}</a>`).join('')}</nav>`;
   }
@@ -531,6 +681,103 @@
     const content = `${error ? `<div class="db-banner">${esc(error)}</div>` : ''}<section class="panel"><div class="data-toolbar"><div class="toolbar-group">${filters.map(([key,label]) => `<a class="button ${status === key ? 'button-primary' : 'button-quiet'} button-small" href="#/admin/submissions?status=${key}">${label}</a>`).join('')}</div><form class="toolbar-group" data-form="submission-search"><input class="input search-input" name="search" value="${esc(search)}" placeholder="Search name, email, BIB"><input type="hidden" name="status" value="${esc(status)}"><button class="button button-dark button-small">Search</button></form></div>${cards || '<div class="panel-content">No submissions match this filter.</div>'}</section>`;
     dashLayout(content, '/admin/submissions', 'Run submission review', 'Open the activity link, then approve or reject the run.');
   }
+  function adminChatMessageMarkup(message) {
+    return '<article class="admin-chat-message ' + (message.sender === 'AI' ? 'support' : String(message.sender).toLowerCase()) + '"><small>' + esc(message.sender === 'AI' ? 'RAVENX SUPPORT' : message.sender) + ' · ' + date(message.created_at) + '</small><div>' + esc(message.body).replace(/\n/g, '<br>') + '</div></article>';
+  }
+
+  function adminChatListMarkup(conversations, selectedId, filter) {
+    return conversations.map((item) =>
+      '<a class="admin-chat-list-item ' + (selectedId === item.id ? 'selected' : '') + '" href="#/admin/chats?id=' + encodeURIComponent(item.id) + '&status=' + encodeURIComponent(filter) + '">' +
+      '<span class="admin-chat-list-top"><strong>' + esc(item.visitor_name || 'Visitor') + '</strong>' + statusPill(item.status) + '</span>' +
+      '<small>' + esc(item.visitor_email || 'Email not provided') + '</small><span class="admin-chat-last">' + esc(item.last_message || 'No messages') + '</span><small>' + date(item.updated_at) + '</small></a>'
+    ).join('');
+  }
+
+  let adminChatPollTimer = null;
+  function scheduleAdminChatPoll() {
+    clearTimeout(adminChatPollTimer);
+    if (!user || user.role !== 'admin' || routeInfo().path !== '/admin/chats') return;
+    adminChatPollTimer = setTimeout(async () => {
+      const route = routeInfo();
+      const filter = route.query.get('status') || 'ADMIN_REQUESTED';
+      const selectedId = route.query.get('id') || '';
+      try {
+        const result = await api('/api/admin/chats?status=' + encodeURIComponent(filter));
+        const conversations = result.conversations || [];
+        const list = document.querySelector('.admin-chat-list');
+        if (list) list.innerHTML = adminChatListMarkup(conversations, selectedId, filter) || '<div class="panel-content">No chats in this filter.</div>';
+        if (selectedId) {
+          const detail = await api('/api/admin/chats/' + encodeURIComponent(selectedId));
+          const thread = document.querySelector('.admin-chat-messages');
+          if (thread) thread.innerHTML = (detail.messages || []).map(adminChatMessageMarkup).join('') || '<p class="help-text">This chat has no messages yet.</p>';
+        }
+      } catch { /* Keep the current inbox visible if a background refresh fails. */ }
+      scheduleAdminChatPoll();
+    }, 7000);
+  }
+
+  async function renderAdminChats() {
+    if (!user || user.role !== 'admin') return renderAdmin();
+    const route = routeInfo();
+    const filter = route.query.get('status') || 'ADMIN_REQUESTED';
+    const selectedId = route.query.get('id') || '';
+    let conversations = [];
+    let selected = null;
+    let messages = [];
+    let error = '';
+    try {
+      conversations = (await api('/api/admin/chats?status=' + encodeURIComponent(filter))).conversations || [];
+      if (selectedId) {
+        const result = await api('/api/admin/chats/' + encodeURIComponent(selectedId));
+        selected = result.conversation;
+        messages = result.messages || [];
+      }
+    } catch (e) { error = e.message; }
+    const filters = [['ADMIN_REQUESTED','Needs response'],['ADMIN_ACCEPTED','Active'],['CLOSED','Closed'],['ALL','All']];
+    const list = adminChatListMarkup(conversations, selectedId, filter);
+    const thread = selected
+      ? '<section class="panel admin-chat-thread"><div class="panel-heading"><div><span class="eyebrow">' + esc(selected.visitorEmail || selected.accountEmail || 'Visitor') + '</span><h2>' + esc(selected.visitorName || selected.accountName || 'RavenX visitor') + '</h2></div><div class="toolbar-group">' +
+        (['ADMIN_ACCEPTED','ADMIN_REQUESTED'].includes(selected.status) ? '<button class="button button-quiet button-small" data-action="admin-chat-close" data-id="' + esc(selected.id) + '">Close chat</button>' : '') +
+        '<button class="button button-danger button-small" data-action="admin-chat-delete" data-id="' + esc(selected.id) + '">Delete conversation</button>' +
+        '<button class="button button-quiet button-small" data-action="refresh-admin-chat">Refresh</button></div></div>' +
+        '<div class="admin-chat-messages">' + (messages.map(adminChatMessageMarkup).join('') || '<p class="help-text">This chat has no messages yet.</p>') + '</div>' +
+        (['ADMIN_ACCEPTED','ADMIN_REQUESTED'].includes(selected.status)
+          ? '<form class="chat-admin-reply" data-form="admin-chat-reply"><input type="hidden" name="conversationId" value="' + esc(selected.id) + '"><label for="admin-chat-reply">Your text reply</label><textarea class="textarea" id="admin-chat-reply" name="message" maxlength="2000" rows="3" required></textarea><button class="button button-primary button-small" type="submit">Send reply</button><div class="error-text" data-error></div></form>'
+          : '<div class="panel-content"><p class="help-text">This conversation is closed.</p></div>') +
+        '</section>'
+      : '<section class="panel"><div class="empty-state"><div><h2>Select a conversation</h2><p>Choose a request from the inbox to review and reply.</p></div></div></section>';
+    const content = (error ? '<div class="db-banner">' + esc(error) + '</div>' : '') +
+      '<div class="data-toolbar"><div class="toolbar-group">' + filters.map(([key,label]) => '<a class="button ' + (filter === key ? 'button-primary' : 'button-quiet') + ' button-small" href="#/admin/chats?status=' + key + '">' + label + '</a>').join('') + '</div><div class="toolbar-group"><button class="button button-danger button-small" data-action="admin-chat-clear" data-status="' + esc(filter) + '" ' + (conversations.length ? '' : 'disabled') + '>Delete inbox</button><button class="button button-quiet button-small" data-action="refresh-admin-chats">Refresh inbox</button></div></div>' +
+      '<div class="admin-chat-layout"><section class="panel admin-chat-list">' + (list || '<div class="panel-content">No chats in this filter.</div>') + '</section>' + thread + '</div>';
+    dashLayout(content, '/admin/chats', 'RavenX chat inbox', 'Read visitor messages and reply directly by text.');
+    scheduleAdminChatPoll();
+  }
+
+  async function renderAdminAnalytics() {
+    if (!user || user.role !== 'admin') return renderAdmin();
+    const { query } = routeInfo();
+    const days = Number(query.get('days') || 30);
+    let data = null;
+    let error = '';
+    try { data = await api('/api/admin/analytics?days=' + encodeURIComponent(days)); }
+    catch (e) { error = e.message; }
+    const summary = data?.summary || {};
+    const daily = data?.daily || [];
+    const recent = data?.recent || [];
+    const maxVisits = Math.max(1, ...daily.map((row) => Number(row.visits || 0)));
+    const dailyRows = daily.map((row) => '<div class="analytics-day"><time>' + esc(row.visit_date) + '</time><div class="analytics-bar"><span style="width:' + Math.round(Number(row.visits || 0) / maxVisits * 100) + '%"></span></div><strong>' + esc(row.visits) + '</strong><small>' + esc(row.visitors) + ' visitors · avg ' + durationText(row.average_seconds) + '</small></div>').join('');
+    const recentRows = recent.map((row) => '<tr><td>' + esc(row.visitor_label) + '</td><td><code>' + esc(row.page_path) + '</code></td><td>' + date(row.started_at, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</td><td>' + durationText(row.duration_seconds) + '</td></tr>').join('');
+    const visibleData = analyticsDataVisible
+      ? '<div class="stat-grid visitor-analytics-stats"><article class="stat-card"><span class="stat-label">Page visits</span><strong>' + new Intl.NumberFormat().format(Number(summary.total_visits || 0)) + '</strong><small>Public pages in this period</small></article><article class="stat-card"><span class="stat-label">Anonymous visitors</span><strong>' + new Intl.NumberFormat().format(Number(summary.anonymous_visitors || 0)) + '</strong><small>Unique first-party browser sessions</small></article><article class="stat-card"><span class="stat-label">Average time</span><strong>' + durationText(summary.average_seconds) + '</strong><small>Per public page visit</small></article><article class="stat-card"><span class="stat-label">Total time</span><strong>' + durationText(summary.total_seconds) + '</strong><small>Time across public page visits</small></article></div>' +
+        '<div class="analytics-grid"><section class="panel"><div class="panel-heading"><h2>Visits by date</h2><span class="help-text">Bangladesh time</span></div><div class="analytics-daily">' + (dailyRows || '<p class="panel-content help-text">No public page visits recorded in this date range.</p>') + '</div></section><section class="panel"><div class="panel-heading"><h2>Recent page visits</h2><span class="help-text">Last 100</span></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>Anonymous visitor</th><th>Page</th><th>Date and time</th><th>Time spent</th></tr></thead><tbody>' + (recentRows || '<tr><td colspan="4">No visit data yet.</td></tr>') + '</tbody></table></div></section></div>'
+      : '<section class="panel"><div class="panel-content help-text">Visitor data is hidden on this screen. Select “Show visitor data” to view it.</div></section>';
+    const ranges = [7, 30, 90].map((range) => '<a class="button ' + (days === range ? 'button-primary' : 'button-quiet') + ' button-small" href="#/admin/analytics?days=' + range + '">Last ' + range + ' days</a>').join('');
+    const content = (error ? '<div class="db-banner">' + esc(error) + '</div>' : '') +
+      '<div class="data-toolbar"><div class="toolbar-group">' + ranges + '</div><button class="button button-dark button-small" data-action="toggle-analytics-data">' + (analyticsDataVisible ? 'Hide visitor data' : 'Show visitor data') + '</button></div>' +
+      '<p class="help-text analytics-privacy">First-party anonymous analytics for public Home, Events, event details, and Shop pages only. RavenX does not record names, email addresses, or IP addresses here.</p>' + visibleData;
+    dashLayout(content, '/admin/analytics', 'Visitor analytics', 'Anonymous visit counts and time spent on public pages.');
+  }
+
   async function renderAdminShopOrders() {
     if (!user || user.role !== 'admin') return renderAdmin();
     const { query } = routeInfo();
@@ -553,6 +800,7 @@
 
   async function render() {
     const { path } = routeInfo();
+    trackAnalyticsPage(path);
     if (path !== '/forgot-password') passwordResetEmail = '';
     if (path === '/' || path === '/home') return renderHome();
     if (path === '/events') return renderEvents();
@@ -572,6 +820,8 @@
     if (path === '/admin/events') return renderAdminEvents();
     if (path === '/admin/registrations') return renderAdminRegistrations();
     if (path === '/admin/submissions') return renderAdminSubmissions();
+    if (path === '/admin/chats') return renderAdminChats();
+    if (path === '/admin/analytics') return renderAdminAnalytics();
     if (path === '/admin/shop-products') return renderAdminShopProducts();
     if (path === '/admin/shop-orders') return renderAdminShopOrders();
     if (path === '/admin/notifications') return renderNotifications(true);
@@ -590,6 +840,32 @@
     const button = form.querySelector('button[type="submit"],button:not([type])');
     if (button) { button.disabled = true; button.dataset.original = button.textContent; button.textContent = 'Please wait…'; }
     try {
+      if (formType === 'chat-message') {
+        const body = { message: String(values.get('message') || '') };
+        if (values.get('name')) body.name = String(values.get('name'));
+        if (values.get('email')) body.email = String(values.get('email'));
+        const result = await api('/api/chat/messages', { method: 'POST', body });
+        chatConversation = result.conversation || { ...(chatConversation || {}), id: result.conversationId, status: result.status };
+        chatMessages = result.messages || [];
+        chatError = '';
+        chatDraft = '';
+        chatContactDraft = { name: '', email: '' };
+        const composerInput = document.querySelector('#chat-root #raven-chat-input');
+        if (composerInput) composerInput.value = '';
+        chatOpen = true;
+        renderChatWidget();
+        scheduleChatPoll();
+        return;
+      }
+      if (formType === 'admin-chat-reply') {
+        const id = String(values.get('conversationId') || '');
+        await api('/api/admin/chats/' + encodeURIComponent(id) + '/messages', {
+          method: 'POST', body: { message: String(values.get('message') || '') }
+        });
+        notify('Your reply was sent.');
+        await renderAdminChats();
+        return;
+      }
       if (formType === 'event-admin') {
         const rows = Array.from(form.querySelectorAll('[data-event-distance-row]'));
         const eventData = {
@@ -696,6 +972,13 @@
         payload.append('fbp', cookieValue('_fbp'));
         payload.append('fbc', cookieValue('_fbc'));
         const result = await api('/api/events/' + encodeURIComponent(form.dataset.eventSlug || EVENT.slug) + '/registrations', { method: 'POST', body: payload });
+        if (result.accountCreated) {
+          user = result.user || user;
+          csrfToken = result.csrfToken || csrfToken;
+          notify('Your event registration and RavenX account are ready.');
+          location.hash = '#/my-events';
+          return;
+        }
         notify(result.message || 'Registration submitted.'); location.hash = '#/my-events'; return;
       }
       if (formType === 'submission') {
@@ -741,10 +1024,84 @@
     }
   });
 
+  app.addEventListener('input', (event) => {
+    if (event.target.id === 'raven-chat-input') chatDraft = event.target.value;
+    if (event.target.id === 'chat-contact-name') chatContactDraft.name = event.target.value;
+    if (event.target.id === 'chat-contact-email') chatContactDraft.email = event.target.value;
+  });
+
   app.addEventListener('click', async (event) => {
     const action = event.target.closest('[data-action]');
     if (!action) return;
     const name = action.dataset.action;
+    if (name === 'toggle-chat') {
+      chatOpen = !chatOpen;
+      if (chatOpen) await refreshChat();
+      else clearTimeout(chatPollTimer);
+      renderChatWidget();
+      scheduleChatPoll();
+      if (chatOpen) document.querySelector('#chat-root #raven-chat-input')?.focus();
+      return;
+    }
+    if (name === 'new-chat') {
+      chatContactDraft = {
+        name: chatConversation?.visitorName || chatContactDraft.name,
+        email: chatConversation?.visitorEmail || chatContactDraft.email
+      };
+      chatConversation = null;
+      chatMessages = [];
+      chatDraft = '';
+      chatError = '';
+      chatOpen = true;
+      renderChatWidget();
+      scheduleChatPoll();
+      return;
+    }
+    if (name === 'refresh-admin-chats' || name === 'refresh-admin-chat') {
+      await renderAdminChats();
+      return;
+    }
+    if (name === 'toggle-analytics-data') {
+      analyticsDataVisible = !analyticsDataVisible;
+      await renderAdminAnalytics();
+      return;
+    }
+    if (name === 'admin-chat-delete') {
+      if (!window.confirm('Delete this conversation and its messages permanently?')) return;
+      try {
+        await api('/api/admin/chats/' + encodeURIComponent(action.dataset.id), { method: 'DELETE' });
+        notify('Conversation deleted.');
+        const status = routeInfo().query.get('status') || 'ADMIN_REQUESTED';
+        const nextHash = '#/admin/chats?status=' + encodeURIComponent(status);
+        if (location.hash === nextHash) await renderAdminChats();
+        else location.hash = nextHash;
+      } catch (error) { notify(error.message); }
+      return;
+    }
+    if (name === 'admin-chat-clear') {
+      const status = action.dataset.status || 'ALL';
+      const label = { ALL: 'all chats', ADMIN_REQUESTED: 'chats needing a reply', ADMIN_ACCEPTED: 'active chats', CLOSED: 'closed chats' }[status] || 'chats';
+      if (!window.confirm('Delete ' + label + ' from the inbox permanently? This also deletes their messages.')) return;
+      try {
+        const result = await api('/api/admin/chats?status=' + encodeURIComponent(status), { method: 'DELETE' });
+        notify((result.deletedCount || 0) + ' conversation(s) deleted.');
+        const nextHash = '#/admin/chats?status=' + encodeURIComponent(status);
+        if (location.hash === nextHash) await renderAdminChats();
+        else location.hash = nextHash;
+      } catch (error) { notify(error.message); }
+      return;
+    }
+    if (name === 'admin-chat-accept' || name === 'admin-chat-close') {
+      const operation = name === 'admin-chat-accept' ? 'accept' : 'close';
+      try {
+        await api('/api/admin/chats/' + encodeURIComponent(action.dataset.id), {
+          method: 'PATCH', body: { action: operation }
+        });
+        notify(operation === 'accept' ? 'You accepted the chat request.' : 'Chat closed.');
+        await renderAdminChats();
+      } catch (error) { notify(error.message); }
+      return;
+    }
     if (name === 'add-event-distance') {
       const list = action.closest('.panel')?.querySelector('[data-event-distance-list]');
       if (!list) return;
@@ -899,6 +1256,8 @@
   });
 
   window.addEventListener('hashchange', () => { render(); });
+  window.addEventListener('pagehide', () => { void reportAnalyticsDuration(true); });
+  setInterval(() => { void reportAnalyticsDuration(true); }, 15000);
   const boot = async () => { await loadUser(); await render(); };
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();

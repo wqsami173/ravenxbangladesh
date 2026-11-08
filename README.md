@@ -4,6 +4,8 @@ RavenX’s registration, BIB collection, run review, certificate, and admin tool
 
 The initial public event collection contains only **Shadow Sprint Run 2026**. Its registration window remains open as requested. The Shop currently lists the supplied Shadow Sprint jersey for ৳299 and collects delivery orders. Database migrations are additive and preserve existing tables and rows.
 
+The public site includes text-only direct messaging with the RavenX administrator. Visitors send a message from the site; it appears in **Admin → Chat inbox**, where the administrator can reply. Guest visitors provide a name and email so the administrator can respond. There is no AI chat service or API billing requirement.
+
 ## Inspected RavenX repositories
 
 | Project | Default branch | Existing structure |
@@ -28,7 +30,7 @@ The inspected public registration and promo repositories both track a `.env` fil
 ## Files created
 
 - Root: `.env.example`, `.gitignore`, `README.md`, `package.json`, `package-lock.json`, `server.js`.
-- Database: ordered, additive migrations in `db/migrations/001_ravenx_platform.sql` through `db/migrations/005_shop_product_options.sql`.
+- Database: ordered, additive migrations in `db/migrations/001_ravenx_platform.sql` through `db/migrations/008_anonymous_visitor_analytics.sql`.
 - Server modules: `src/db.js`, `src/domain.js`, `src/email.js`, `src/storage.js`.
 - Operations: `scripts/migrate.js`, `scripts/promote-admin.js`.
 - Browser app: `public/index.html`, `public/app.js`, `public/styles.css`, and the six files in `public/assets/`.
@@ -94,6 +96,14 @@ Use separate generated values for `SESSION_SECRET` and `ADMIN_SETUP_SECRET`. Nev
 
 To send from `ravenxbdofficial@gmail.com`, enable Google 2-Step Verification and create a separate App Password for RavenX. Set `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `.env` or Render, then restart the server. Never use or share the account's regular password. App Password availability and setup requirements are described in [Google's App Password guidance](https://support.google.com/mail/answer/185833?hl=en). Alternatively, set a Resend API key and verified sender. The backend places messages in `email_outbox` in the same database transaction as registrations, reviews, and shop orders, then retries delivery with backoff up to 12 attempts. Existing queued messages send after a provider is configured and the server restarts. Failed deliveries can be retried in Admin. Admin alerts go to `wqsami173@gmail.com` by default. Outlook automation is not needed for Gmail sending.
 
+### Visitor chat
+
+Visitors can send text directly to the admin inbox at `/#/admin/chats`. Guests include a name and email with their first message; signed-in participants use their account details. The admin can reply immediately, and replies are also emailed to the visitor when mail delivery is configured. Chat text is stored in Neon. The chat accepts text only.
+
+### Visitor analytics
+
+The admin-only **Visitor analytics** page shows public Home, Events, event details, and Shop page visits, date totals, anonymous browser-session counts, and time spent per page. Visitor identifiers are HMAC hashes of the server session ID; names, email addresses, and IP addresses are not recorded. The analytics data can be hidden from the current admin screen with its Hide/Show control.
+
 ### Cloudinary setup
 
 Cloudinary remains optional for future event assets. Shadow Sprint certificate artwork is rendered from the supplied template at request time. Participant image selections are not uploaded or stored.
@@ -108,7 +118,8 @@ Cloudinary remains optional for future event assets. Shadow Sprint certificate a
    ```
 
 3. Sign out and sign back in. The account now has administrator routes. Public signup always creates participant accounts.
-4. Participants create accounts at `/#/signup`, sign in at `/#/login`, and use **Events → Shadow Sprint Run 2026** to register. **Forgot password?** emails a six-digit code from the configured RavenX Gmail sender. The code expires after 10 minutes, is single-use, and locks after five incorrect attempts. Reset requests use a generic response so the endpoint does not disclose whether an email has an account.
+4. Participants can register directly from **Events → Shadow Sprint Run 2026** without signing up first. The registration form collects their name, email, phone, and a password they choose; the server creates their participant account and registration together, then signs them in. Their password is bcrypt-hashed and never emailed. Participants who already have an account should sign in before registering. **Forgot password?** emails a six-digit code from the configured RavenX Gmail sender. The code expires after 10 minutes, is single-use, and locks after five incorrect attempts. Reset requests use a generic response so the endpoint does not disclose whether an email has an account.
+5. Visitors can open RavenX support on any page and send a text message directly. Guests provide a name and email. The administrator reads and replies from **Admin → Chat inbox**; the inbox refreshes automatically while open.
 
 ## Workflow and routes
 
@@ -147,6 +158,9 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `GET` | `/api/events`, `/api/events/:slug` | Published event collection and details. |
 | `GET` | `/api/shop/products` | Active products, prices, and size options. |
 | `POST` | `/api/shop/orders` | Public order request; prices are looked up server-side and mutations require CSRF. |
+| `GET` | `/api/chat/conversation` | Return the current browser/account-owned text chat. |
+| `POST` | `/api/chat/messages` | Send a visitor message directly to the admin inbox (`message`, plus `name` and `email` for guests). |
+| `POST`, `PATCH` | `/api/analytics/visits`, `/api/analytics/visits/:visitId` | Record an anonymous public page visit and report time spent; duration updates are session-owned. |
 | `POST` | `/api/auth/signup` | Create a participant account (`name`, `email`, `phone`, `password`, `confirmPassword`). |
 | `POST` | `/api/auth/login`, `/api/auth/logout` | Sign in (`email`, `password`, optional `remember`) and sign out. |
 | `GET` | `/api/auth/me`, `/api/me/profile` | Current account/profile. |
@@ -154,7 +168,7 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `POST` | `/api/auth/password-reset/request` | Request a one-time reset code (`email`); the response does not reveal whether the account exists. |
 | `POST` | `/api/auth/password-reset/verify-code` | Verify a reset code and change the password (`email`, `code`, `password`, `confirmPassword`). |
 | `POST` | `/api/auth/password-reset/confirm` | Consume a previously issued legacy reset link (`token`, `password`, `confirmPassword`). |
-| `POST` | `/api/events/:slug/registrations` | Authenticated registration form data; file uploads are rejected. |
+| `POST` | `/api/events/:slug/registrations` | Public registration form data creates a participant account when needed; logged-in participants can register with their existing account. File uploads are rejected. |
 | `GET` | `/api/me/events`, `/api/me/events/:registrationId` | Own approved, pending, and rejected registrations; detail is ownership-checked. |
 | `GET` | `/api/me/events/:registrationId/bib` | Own approved BIB preview as PNG; add `?download=1` to download PNG. |
 | `POST` | `/api/me/events/:registrationId/submissions` | Own approved registration run submission (`activity_url` required). Participant details and BIB come from the owned registration; file uploads are rejected. |
@@ -170,15 +184,19 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `PATCH` | `/api/admin/submissions/:submissionId` | Admin approval/rejection (`action`; `feedback` when rejecting). |
 | `GET`, `PATCH` | `/api/admin/notifications`, `/api/admin/notifications/:id/read` | Admin notification list/read actions. |
 | `GET`, `POST` | `/api/admin/email-outbox/failed`, `/api/admin/email-outbox/:id/retry` | View failed messages and retry one. |
+| `GET` | `/api/admin/chats`, `/api/admin/chats/:conversationId` | Admin-only direct message inbox and transcript. |
+| `PATCH`, `POST` | `/api/admin/chats/:conversationId`, `/api/admin/chats/:conversationId/messages` | Close a conversation or send a text reply. Replies are also emailed when the mail provider is configured. |
+| `DELETE` | `/api/admin/chats/:conversationId`, `/api/admin/chats?status=...` | Delete one chat or clear the current inbox filter; deletes chat messages, linked admin alerts, and associated chat email records. |
+| `GET` | `/api/admin/analytics?days=7\|30\|90` | Admin-only anonymous visitor statistics, date totals, and recent public page visits. |
 | `GET` | `/api/admin/shop/orders` | Admin-only delivery queue with status/search filters. |
 | `PATCH` | `/api/admin/shop/orders/bulk-status` | Admin-only status update for selected orders. |
 | `PATCH` | `/api/admin/shop/orders/:orderId` | Admin-only status and optional courier reference update. |
 
 ## Database migration
 
-Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/006_password_reset_codes.sql`.
+Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/008_anonymous_visitor_analytics.sql`.
 
-`npm run migrate` uses the configured `DATABASE_URL`, records applied files in `schema_migrations`, and applies each SQL file transactionally. The migrations preserve legacy registration tables, payment columns, and historical image references; backfill users without inventing passwords; and create event workflows, shop products/orders, submissions, certificates, notifications, audit, session, BIB-counter, and email-outbox structures. Migration 005 adds optional size selection to products while retaining existing jersey sizes. Migration 006 adds bounded attempts for password reset codes. Current participant screenshot and student ID files remain local to the browser and are excluded from requests and storage. As a result, the browser requirement is a convenience only; participants can bypass it, and the administrator cannot inspect those images.
+`npm run migrate` uses the configured `DATABASE_URL`, records applied files in `schema_migrations`, and applies each SQL file transactionally. The migrations preserve legacy registration tables, payment columns, and historical image references; backfill users without inventing passwords; and create event workflows, shop products/orders, submissions, certificates, notifications, audit, session, BIB-counter, email-outbox, and text-chat structures. Migration 005 adds optional size selection to products while retaining existing jersey sizes. Migration 006 adds bounded attempts for password reset codes. Migration 007 creates direct visitor-to-admin text conversations; its old feedback and Q&A tables/status values remain unused for compatibility. Migration 008 adds first-party anonymous public-page visits and duration data without storing names, emails, or IP addresses. Current participant screenshot and student ID files remain local to the browser and are excluded from requests and storage. As a result, participants can bypass the browser image requirement, and the administrator cannot inspect those images.
 
 The provided Neon database was inspected in a read-only transaction before migration; it initially had no application tables or participant records. The additive migration was then applied successfully and the resulting schema verified. It creates the event and platform tables without deleting or truncating data.
 
@@ -186,7 +204,7 @@ The provided Neon database was inspected in a read-only transaction before migra
 
 1. Connect the project directory/repository to a Render **Web Service** using Node.
 2. Set Node 20+, build command `npm ci`, and start command `npm start`.
-3. Add production environment variables in Render (`DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `FRONTEND_URL`, and Gmail or Resend/Cloudinary values needed for delivery and uploads). Do not add `.env` to Git.
+3. Add production environment variables in Render (`DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `FRONTEND_URL`, and Gmail or Resend/Cloudinary values needed for email delivery and uploads). Do not add `.env` to Git.
 4. Back up Neon, then run `npm run migrate` from the Render shell.
 5. Create/promote the admin account using the instructions above.
 6. Verify `/healthz`, sign up a test participant, register, approve, and test uploads/email using real service credentials.
@@ -206,4 +224,4 @@ npm audit --omit=dev
 
 The committed tests cover distance/category mappings, fee rules, BIB formatting, accepted activity link schemes, image signature checks, template-backed BIB/certificate output and PNG rasterization, certificate escaping, and legacy name matching. They are unit checks, not the complete live registration/approval workflow. Run `npm run migrate` to apply any unapplied migrations, including the frontend-only image selection metadata. Provider email delivery and Cloudinary uploads depend on their configured credentials.
 
-The three inspected source sites are separate public repositories. This implementation is in the current workspace and has not been pushed to or deployed from any of them. The existing legacy BIB/certificate image collections remain hosted in their source repositories and depend on those repositories staying public or on replacing the asset-base environment variables with an owned storage location.
+The three inspected source sites remain separate public repositories; this unified application is maintained in the RavenX registration repository. The legacy BIB/certificate image collections remain hosted in their source repositories and depend on those repositories staying public or on replacing the asset-base environment variables with an owned storage location.
