@@ -81,7 +81,9 @@ Open `http://localhost:3000`. `npm run dev` starts the server in Node watch mode
 | `FRONTEND_URL` | Recommended | Public site origin used in email links and CORS. Defaults to the local server URL. |
 | `BIB_ASSET_BASE_URL` | Optional | Base URL for existing BIB assets. A public GitHub raw URL is supplied in `.env.example`. |
 | `CERTIFICATE_ASSET_BASE_URL` | Optional | Base URL for legacy certificate images. A public GitHub raw URL is supplied in `.env.example`. |
-| `META_PIXEL_ID`, `META_ACCESS_TOKEN`, `META_API_VERSION` | Optional | Existing Meta Conversions API integration; Pixel ID and access token must both be supplied to enable it. |
+| `META_PIXEL_ID` | Optional | Public Meta Pixel ID for browser page views and registration tracking. |
+| `META_ACCESS_TOKEN` | Optional, server-only | Meta Conversions API token. Keep it in Render environment variables; never put it in frontend code, URLs, or Git. |
+| `META_API_VERSION` | Optional | Graph API version for server-side registration events; defaults to `v23.0`. |
 | `PG_POOL_MAX` | Optional | PostgreSQL pool size; defaults to 10. |
 
 Generate secrets locally, for example with PowerShell:
@@ -210,6 +212,8 @@ The provided Neon database was inspected in a read-only transaction before migra
 6. Verify `/healthz`, sign up a test participant, register, approve, and test uploads/email using real service credentials.
 
 The app honors Render's `PORT`, trusts the Render proxy for secure cookies, and sets `SameSite=Lax`/`HttpOnly` session cookies. `FRONTEND_URL` should be the exact public origin; it controls CORS and email links. The local Neon URL is stored in the ignored `.env` and must be added separately to Render's environment settings.
+
+For a Facebook post that should open the Shadow Sprint registration form directly, use `https://ravenxbangladesh.onrender.com/#/events/shadow-sprint-2026?register=1`.
 
 ## Checks and known limits
 

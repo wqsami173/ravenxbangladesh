@@ -218,6 +218,7 @@ img { max-width: 100%; }
 .fee-line:last-child { border-bottom: 0; }
 .fee-line strong { color: var(--text); }
 .registration-form { margin-top: 23px; padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: #111713; }
+#event-registration { scroll-margin-top: 92px; }
 .registration-form h2 { margin: 0 0 5px; font-size: 18px; }
 .registration-form > p { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .distance-select { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 14px 0 18px; }

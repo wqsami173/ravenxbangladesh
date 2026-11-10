@@ -41,6 +41,7 @@
   let analyticsLastPath = null;
   let analyticsQueue = Promise.resolve();
   let analyticsDataVisible = true;
+  let metaLastPage = '';
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const date = (value, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
@@ -142,6 +143,19 @@
         analyticsPageStartedAt = Date.now();
       } catch { /* Analytics is optional; keep the public site available if it fails. */ }
     }).catch(() => {});
+  }
+
+  function trackMetaPage(path) {
+    const isPublicPage = user?.role !== 'admin' && /^\/(?:|home|events(?:\/[a-z0-9][a-z0-9-]*)?|shop)$/i.test(path);
+    const pageKey = location.hash || '#/';
+    if (metaLastPage === pageKey) return;
+    metaLastPage = pageKey;
+    if (isPublicPage && typeof window.fbq === 'function') window.fbq('track', 'PageView');
+  }
+
+  function trackMetaRegistration(registrationId) {
+    if (!registrationId || typeof window.fbq !== 'function') return;
+    window.fbq('track', 'CompleteRegistration', {}, { eventID: 'registration_' + registrationId });
   }
 
   function notify(message) {
@@ -390,7 +404,8 @@
   }
 
   async function renderEvent() {
-    const slug = decodeURIComponent(routeInfo().path.split('/')[2] || EVENT.slug);
+    const route = routeInfo();
+    const slug = decodeURIComponent(route.path.split('/')[2] || EVENT.slug);
     const event = await getEvent(slug);
     if (!event) {
       layout(`<section class="section page-wrap"><div class="empty-state"><div><h2>Event not found</h2><p>This event is not currently available.</p>${link('/events','Explore Events','button button-primary')}</div></div></section>`, '/events');
@@ -404,7 +419,10 @@
     const earlyBirdActive = Boolean(earlyBird.valid_until && earlyBird.valid_until >= today);
     const currentFee = (category, amount) => Math.max(0, Number(amount) - (earlyBirdActive ? Number(earlyBird[category + '_discount_tk'] || 0) : 0));
     const registrationOpen = event.workflow?.registrationOpen !== false;
-    layout(`<section class="section"><div class="page-wrap"><article class="event-detail-hero"><div class="event-detail-banner"><img src="${esc(event.bannerUrl || EVENT.bannerUrl)}" alt="${esc(event.name || EVENT.name)} event cover"><div class="event-detail-title"><span class="eyebrow">${registrationOpen ? 'Virtual run · Registration open' : 'Virtual run · Registration closed'}</span><h1>${esc(event.name || EVENT.name)}</h1></div></div><div class="event-detail-body"><div class="details-grid"><div><h2>Fly Like Raven</h2><p>${esc(event.description || EVENT.description)}</p><div class="meta-row"><span class="pill">${esc(meta.location || 'Virtual — Run Anywhere, Anytime')}</span><span class="pill">${date(event.startDate)} – ${date(event.endDate)}</span><span class="pill pill-accent">${registrationOpen ? 'Registration open' : 'Registration closed'}</span></div><p>Run anywhere safe during the event period, record the full distance in Strava or another running app, and submit your activity link for review.</p><h2>Participation rules</h2><ul>${(meta.rules || EVENT.metadata.rules).map((rule)=>`<li>${esc(rule)}</li>`).join('')}</ul><h2 class="subsection-title">Finisher rewards</h2><ul>${(meta.rewards || EVENT.metadata.rewards || []).map((reward)=>`<li>${esc(reward)}</li>`).join('')}</ul></div><aside class="fee-box"><span class="eyebrow">Registration fees</span>${categories.map(([category,amount])=>`<div class="fee-line"><span>${esc(category[0].toUpperCase()+category.slice(1))}</span><strong>${money(currentFee(category,amount))}${currentFee(category,amount)<amount?` <del>${money(amount)}</del>`:''}</strong></div>`).join('')}${earlyBirdActive?`<p class="help-text">Early-bird pricing is valid through ${date(earlyBird.valid_until)}.</p>`:''}<div class="fee-line"><span>Delivery</span><strong>${fees.courier_charge_applies ? 'Courier charge applies' : 'Included'}</strong></div><p class="help-text">Registration follows the workflow set for this event.</p></aside></div><h2 class="subsection-title">Choose a distance</h2><div class="medal-grid">${eventDistances(meta,event)}</div>${registrationForm(event)}</div></article></div></section>`, '/events');
+    layout(`<section class="section"><div class="page-wrap"><article class="event-detail-hero"><div class="event-detail-banner"><img src="${esc(event.bannerUrl || EVENT.bannerUrl)}" alt="${esc(event.name || EVENT.name)} event cover"><div class="event-detail-title"><span class="eyebrow">${registrationOpen ? 'Virtual run · Registration open' : 'Virtual run · Registration closed'}</span><h1>${esc(event.name || EVENT.name)}</h1></div></div><div class="event-detail-body"><div class="details-grid"><div><h2>Fly Like Raven</h2><p>${esc(event.description || EVENT.description)}</p><div class="meta-row"><span class="pill">${esc(meta.location || 'Virtual — Run Anywhere, Anytime')}</span><span class="pill">${date(event.startDate)} – ${date(event.endDate)}</span><span class="pill pill-accent">${registrationOpen ? 'Registration open' : 'Registration closed'}</span></div><p>Run anywhere safe during the event period, record the full distance in Strava or another running app, and submit your activity link for review.</p><h2>Participation rules</h2><ul>${(meta.rules || EVENT.metadata.rules).map((rule)=>`<li>${esc(rule)}</li>`).join('')}</ul><h2 class="subsection-title">Finisher rewards</h2><ul>${(meta.rewards || EVENT.metadata.rewards || []).map((reward)=>`<li>${esc(reward)}</li>`).join('')}</ul></div><aside class="fee-box"><span class="eyebrow">Registration fees</span>${categories.map(([category,amount])=>`<div class="fee-line"><span>${esc(category[0].toUpperCase()+category.slice(1))}</span><strong>${money(currentFee(category,amount))}${currentFee(category,amount)<amount?` <del>${money(amount)}</del>`:''}</strong></div>`).join('')}${earlyBirdActive?`<p class="help-text">Early-bird pricing is valid through ${date(earlyBird.valid_until)}.</p>`:''}<div class="fee-line"><span>Delivery</span><strong>${fees.courier_charge_applies ? 'Courier charge applies' : 'Included'}</strong></div><p class="help-text">Registration follows the workflow set for this event.</p></aside></div><h2 class="subsection-title">Choose a distance</h2><div class="medal-grid">${eventDistances(meta,event)}</div><section id="event-registration" tabindex="-1">${registrationForm(event)}</section></div></article></div></section>`, '/events');
+    if (route.query.get('register') === '1') {
+      requestAnimationFrame(() => document.getElementById('event-registration')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   }
 
   async function renderEvents() {
@@ -801,6 +819,7 @@
   async function render() {
     const { path } = routeInfo();
     trackAnalyticsPage(path);
+    trackMetaPage(path);
     if (path !== '/forgot-password') passwordResetEmail = '';
     if (path === '/' || path === '/home') return renderHome();
     if (path === '/events') return renderEvents();
@@ -972,6 +991,7 @@
         payload.append('fbp', cookieValue('_fbp'));
         payload.append('fbc', cookieValue('_fbc'));
         const result = await api('/api/events/' + encodeURIComponent(form.dataset.eventSlug || EVENT.slug) + '/registrations', { method: 'POST', body: payload });
+        trackMetaRegistration(result.registrationId);
         if (result.accountCreated) {
           user = result.user || user;
           csrfToken = result.csrfToken || csrfToken;
