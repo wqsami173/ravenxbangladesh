@@ -5,6 +5,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wqsami173@gmail.com';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
 const GMAIL_USER = process.env.GMAIL_USER || 'ravenxbdofficial@gmail.com';
 const GMAIL_APP_PASSWORD = String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+const EMAIL_HERO_IMAGE_URL = process.env.EMAIL_HERO_IMAGE_URL || '';
 const resendConfigured = Boolean(process.env.RESEND_API_KEY && EMAIL_FROM);
 const gmailConfigured = Boolean(GMAIL_USER && GMAIL_APP_PASSWORD);
 const configured = gmailConfigured || resendConfigured;
@@ -19,39 +20,78 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function emailLayout(title, body) {
+function httpsImageUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' ? escapeHtml(url.href) : '';
+  } catch {
+    return '';
+  }
+}
+
+function emailLayout(title, body, data = {}) {
   const styledBody = body
-    .replace(/<p>/g, '<p style="margin:0 0 16px;color:#37443b;font-size:15px;line-height:1.65">')
-    .replace(/<dl>/g, '<dl style="margin:22px 0;padding:18px 20px;background:#f5f7f4;border:1px solid #e5e9e3;border-radius:12px">')
-    .replace(/<dt>/g, '<dt style="margin-top:12px;color:#758078;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">')
-    .replace(/<dd>/g, '<dd style="margin:4px 0 0;color:#18211c;font-size:14px;font-weight:600;line-height:1.5">')
-    .replace(/<a href=/g, '<a style="color:#bd4f11;font-weight:700;text-decoration:none" href=');
+    .replace(/<p>/g, '<p style="margin:0 0 16px;color:#46392f;font-size:15px;line-height:1.7">')
+    .replace(/<dl>/g, '<dl style="margin:22px 0;padding:18px 20px;background:#fffaf2;border:1px solid #eadbc8">')
+    .replace(/<dt>/g, '<dt style="margin-top:12px;color:#97765d;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">')
+    .replace(/<dd>/g, '<dd style="margin:4px 0 0;color:#241d19;font-size:14px;font-weight:600;line-height:1.5;word-break:break-word">')
+    .replace(/<a href=/g, '<a style="color:#a7431d;font-weight:700;text-decoration:underline" href=');
+  const heroImage = httpsImageUrl(data.eventBannerUrl || EMAIL_HERO_IMAGE_URL);
+  const hero = heroImage
+    ? '<tr><td style="padding:0;background:#211916"><img src="' + heroImage + '" width="600" alt="RavenX running event" style="display:block;width:100%;max-width:600px;height:auto;border:0"></td></tr>'
+    : '<tr><td style="padding:22px 30px;background:#e9dcc8"><div style="color:#8b3b1d;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase">RavenX running events</div><div style="padding-top:7px;color:#211916;font-size:12px;letter-spacing:.12em">MOVE WITH PURPOSE&nbsp;&nbsp; • &nbsp;&nbsp;FLY LIKE RAVEN</div></td></tr>';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'
-    + escapeHtml(title) + '</title><style>body{margin:0!important;padding:0!important;background:#f0f2ee}table{border-collapse:collapse}a{color:#bd4f11}</style></head>'
-    + '<body style="margin:0;padding:0;background:#f0f2ee;font-family:Arial,Helvetica,sans-serif;color:#18211c">'
-    + '<div style="display:none;max-height:0;overflow:hidden;opacity:0">RavenX update · ' + escapeHtml(title) + '</div>'
-    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2ee"><tr><td align="center" style="padding:28px 12px">'
-    + '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e5e9e3;border-radius:16px;overflow:hidden">'
-    + '<tr><td style="height:6px;background:#f27324;font-size:0;line-height:0">&nbsp;</td></tr>'
-    + '<tr><td style="padding:24px 30px;background:#111915"><table role="presentation" width="100%"><tr>'
-    + '<td style="color:#f7f8f5;font-size:19px;font-weight:800;letter-spacing:.18em">RAVEN<span style="color:#f27324">X</span></td>'
-    + '<td align="right" style="color:#aab5ab;font-size:10px;font-weight:700;letter-spacing:.12em">Fly Like Raven</td>'
-    + '</tr></table></td></tr>'
-    + '<tr><td style="padding:34px 30px 14px"><div style="margin-bottom:9px;color:#bd4f11;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase">RavenX update</div>'
-    + '<h1 style="margin:0;color:#172019;font-size:25px;line-height:1.25">' + escapeHtml(title) + '</h1></td></tr>'
-    + '<tr><td style="padding:12px 30px 28px;color:#37443b;font-size:15px;line-height:1.65">' + styledBody + '</td></tr>'
-    + '<tr><td style="padding:20px 30px;background:#f7f8f6;border-top:1px solid #e9ece7;color:#778078;font-size:12px;line-height:1.6">RavenX Bangladesh<br>Fly Like Raven</td></tr>'
-    + '</table><div style="padding:14px 10px;color:#89918a;font-size:11px">This is an automated message from RavenX.</div></td></tr></table></body></html>';
+    + escapeHtml(title) + '</title></head>'
+    + '<body style="margin:0;padding:0;background:#eee8de;font-family:Arial,Helvetica,sans-serif;color:#241d19">'
+    + '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">RavenX update · ' + escapeHtml(title) + '</div>'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#eee8de"><tr><td align="center" style="padding:28px 12px">'
+    + '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#fffdf9;border:1px solid #e5d8c7">'
+    + '<tr><td style="height:6px;background:#df5a25;font-size:0;line-height:0">&nbsp;</td></tr>'
+    + '<tr><td style="padding:22px 30px;background:#182b29"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td style="color:#fffaf2;font-size:20px;font-weight:900;letter-spacing:.13em">RAVEN<span style="color:#f07a36">X</span></td>'
+    + '<td align="right" style="color:#e9d8c4;font-size:11px;font-weight:700;letter-spacing:.1em">FLY LIKE RAVEN</td>'
+    + '</tr></table></td></tr>' + hero
+    + '<tr><td style="padding:30px 30px 10px"><div style="margin-bottom:9px;color:#bb4d22;font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase">RavenX · Event update</div>'
+    + '<h1 style="margin:0;color:#211916;font-size:27px;line-height:1.2;font-weight:900">' + escapeHtml(title) + '</h1></td></tr>'
+    + '<tr><td style="padding:14px 30px 30px;color:#46392f;font-size:15px;line-height:1.7">' + styledBody + '</td></tr>'
+    + '<tr><td style="padding:20px 30px;background:#f5efe6;border-top:1px solid #eadbc8;color:#776656;font-size:12px;line-height:1.7">RavenX Bangladesh<br><strong style="color:#8e401f;letter-spacing:.08em">FLY LIKE RAVEN</strong></td></tr>'
+    + '</table><div style="padding:14px 10px;color:#897d70;font-size:11px">This is an automated message from RavenX.</div></td></tr></table></body></html>';
 }
 
 function emailButton(url, label) {
-  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 6px"><tr><td bgcolor="#e9691c" style="border-radius:8px">'
-    + '<a style="display:inline-block;padding:12px 18px;color:#fff;font-size:13px;font-weight:700;text-decoration:none" href="' + escapeHtml(url) + '">'
+  if (!url) return '';
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 6px"><tr><td bgcolor="#d95724" style="background:#d95724">'
+    + '<a style="display:inline-block;padding:14px 22px;color:#fffaf2;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:.04em" href="' + escapeHtml(url) + '">'
     + escapeHtml(label) + '</a></td></tr></table>';
+}
+
+function emailDetails(fields) {
+  const rows = fields
+    .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+    .map(([label, value]) => '<tr><td style="padding:10px 12px;border-bottom:1px solid #eee2d4;color:#92785f;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">'
+      + escapeHtml(label) + '</td><td align="right" style="padding:10px 12px;border-bottom:1px solid #eee2d4;color:#2b211b;font-size:12px;font-weight:700;line-height:1.5">'
+      + escapeHtml(value) + '</td></tr>');
+  return rows.length
+    ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;background:#fffaf2;border:1px solid #eadbc8">' + rows.join('') + '</table>'
+    : '';
+}
+
+function raceCard(data, showStatus = false) {
+  const bib = data.bib && data.bib !== 'Pending assignment'
+    ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0"><tr><td style="padding:18px 20px;background:#182b29;color:#fffaf2">'
+      + '<div style="color:#efb27d;font-size:10px;font-weight:700;letter-spacing:.16em">YOUR RACE BIB</div><div style="padding-top:5px;font-size:34px;font-weight:900;letter-spacing:.08em">' + escapeHtml(data.bib) + '</div></td></tr></table>'
+    : '';
+  const details = emailDetails([
+    ['Participant', data.name], ['Event', data.eventName], ['Event category', data.category || data.distance],
+    ['Registration ID', data.registrationId], ['Event date', data.eventDate], ['Event time', data.eventTime],
+    ['Venue', data.venue || data.location], ...(showStatus ? [['Registration status', data.status]] : [])
+  ]);
+  return bib + details;
 }
 
 function template(name, data = {}) {
   const v = Object.fromEntries(Object.entries(data).map(([key, value]) => [key, escapeHtml(value)]));
+  const text = (key, fallback = '') => v[key] || fallback;
   const base = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
   const adminUrl = base + '/#/admin/registrations';
   const adminSubmissionUrl = base + '/#/admin/submissions';
@@ -59,119 +99,117 @@ function template(name, data = {}) {
   const templates = {
     registration_admin: {
       subject: 'New Registration Request – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>' + (data.status === 'PENDING_APPROVAL' ? 'A registration is waiting for administrator review.' : 'A new registration was automatically approved by its event workflow.') + '</p><dl>'
-        + '<dt>Participant</dt><dd>' + v.name + '</dd><dt>Email</dt><dd>' + v.email + '</dd>'
-        + '<dt>Phone</dt><dd>' + v.phone + '</dd><dt>Registration ID</dt><dd>' + v.registrationId + '</dd>'
-        + '<dt>Distance</dt><dd>' + v.distance + '</dd><dt>Payment method</dt><dd>' + v.paymentMethod + '</dd>'
-        + '<dt>Transaction ID</dt><dd>' + (v.transactionId || 'Not provided') + '</dd>'
-        + '<dt>Submitted</dt><dd>' + v.submittedAt + '</dd>'
-        + (data.status === 'APPROVED' ? '<dt>BIB</dt><dd>' + (v.bib || 'Pending assignment') + '</dd>' : '')
-        + '</dl>' + emailButton(adminUrl, 'Review registration')
+      html: '<p>' + (data.status === 'PENDING_APPROVAL' ? 'A registration is waiting for your review.' : 'A registration was automatically approved by its event workflow.') + '</p>'
+        + raceCard(data, true) + emailDetails([['Email', data.email], ['Phone', data.phone], ['Payment method', data.paymentMethod],
+          ['Transaction ID', data.transactionId], ['Submitted', data.submittedAt], ...(data.status === 'APPROVED' && !data.bib ? [['BIB', 'Pending assignment']] : [])])
+        + emailButton(adminUrl, 'Review registration')
     },
     submission_admin: {
       subject: 'New Run Submission – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>A running activity is waiting for administrator review.</p><dl>'
-        + '<dt>Participant</dt><dd>' + v.name + '</dd><dt>Email</dt><dd>' + v.email + '</dd>'
-        + '<dt>Phone</dt><dd>' + (v.phone || 'Not provided') + '</dd>'
-        + '<dt>BIB</dt><dd>' + v.bib + '</dd><dt>Registration ID</dt><dd>' + v.registrationId + '</dd>'
-        + '<dt>Distance</dt><dd>' + (v.distance || 'Not provided') + '</dd>'
-        + '<dt>Activity link</dt><dd><a href="' + v.activityUrl + '">Open running activity</a></dd>'
-        + (v.stravaProfileUrl ? '<dt>Running app profile</dt><dd><a href="' + v.stravaProfileUrl + '">Open profile</a></dd>' : '')
-        + '<dt>Submitted</dt><dd>' + v.submittedAt + '</dd></dl>' + emailButton(adminSubmissionUrl, 'Review run submission')
+      html: '<p>A running activity is waiting for administrator review.</p>' + raceCard(data)
+        + emailDetails([['Email', data.email], ['Phone', data.phone], ['Submitted', data.submittedAt]])
+        + (data.activityUrl ? '<p><a href="' + escapeHtml(data.activityUrl) + '">Open submitted activity</a></p>' : '')
+        + (data.screenshotUrl ? '<p><a href="' + escapeHtml(data.screenshotUrl) + '">View running screenshot</a></p>' : '')
+        + emailButton(adminSubmissionUrl, 'Review run submission')
     },
     welcome: {
       subject: 'Welcome to RavenX',
-      html: '<p>Hi ' + v.name + ', your RavenX account is ready.</p>' + emailButton(userUrl, 'Open your dashboard')
+      html: '<p>Hi ' + text('name', 'runner') + ', welcome to the RavenX community. Your account is ready for the miles ahead.</p>'
+        + '<p><strong>Fly Like Raven.</strong> Sign in any time to explore your registrations and event updates.</p>' + emailButton(userUrl, 'Open your dashboard')
     },
     registration_account_created: {
       subject: 'Your RavenX account and registration',
-      html: '<p>Hi ' + v.name + ', your RavenX account was created automatically with your event registration.</p>'
-        + '<dl><dt>Event</dt><dd>' + v.eventName + '</dd><dt>Distance</dt><dd>' + v.distance + '</dd>'
-        + '<dt>Registration ID</dt><dd>' + v.registrationId + '</dd><dt>Status</dt><dd>' + (v.status || 'PENDING APPROVAL').replaceAll('_', ' ') + '</dd>'
-        + (data.bib ? '<dt>BIB</dt><dd>' + v.bib + '</dd>' : '') + '</dl>'
-        + '<p>Use the email address and the password you chose during registration to sign in. For your security, RavenX never emails passwords.</p>'
+      html: '<p>Hi ' + text('name', 'runner') + ', your RavenX account and event registration are ready.</p>'
+        + raceCard(data, true)
+        + '<p>Sign in with the email address and password you chose during registration. For your security, RavenX never emails passwords.</p>'
         + emailButton(userUrl, 'Open My Events')
     },
     registration_received: {
       subject: 'Registration received – ' + (data.eventName || 'RavenX event'),
-      html: '<p>Hi ' + v.name + ', we received your registration for ' + v.eventName + '.</p>'
-        + '<dl><dt>Distance</dt><dd>' + v.distance + '</dd><dt>Registration ID</dt><dd>' + v.registrationId + '</dd></dl>'
-        + '<p>Your request is pending administrator review. We’ll email you when its status changes.</p>'
+      html: '<p>Hi ' + text('name', 'runner') + ', your request to join ' + text('eventName', 'the RavenX event') + ' has reached us.</p>'
+        + raceCard(data, true) + '<p>Your registration is <strong>pending administrator review</strong>. We’ll email you as soon as its status changes.</p>'
         + emailButton(userUrl, 'Open My Events')
     },
     chat_handoff_admin: {
       subject: 'RavenX chat request from ' + (data.name || 'a visitor'),
-      html: '<p>' + v.name + ' requested a reply from the RavenX administrator.</p>'
-        + '<dl><dt>Contact email</dt><dd>' + v.email + '</dd><dt>Conversation</dt><dd>' + v.conversationId + '</dd></dl>'
-        + emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open chat inbox')
+      html: '<p>' + text('name', 'A visitor') + ' requested a reply from the RavenX administrator.</p>'
+        + emailDetails([['Contact email', data.email], ['Conversation', data.conversationId]])
+        + (data.conversationId ? emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open chat inbox') : '')
     },
     chat_message_admin: {
       subject: 'New RavenX message from ' + (data.name || 'a visitor'),
-      html: '<p>A visitor sent a message to RavenX support. Reply from the admin chat inbox.</p><dl>'
-        + '<dt>Name</dt><dd>' + v.name + '</dd><dt>Email</dt><dd>' + v.email + '</dd>'
-        + '<dt>Message</dt><dd style="white-space:pre-wrap">' + v.message + '</dd></dl>'
-        + emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open and reply')
+      html: '<p>A visitor sent a message to RavenX support. Reply from the admin chat inbox.</p>'
+        + emailDetails([['Name', data.name], ['Email', data.email]])
+        + '<div style="padding:16px 18px;background:#f5efe6;border-left:3px solid #d95724;color:#46392f;white-space:pre-wrap">' + text('message') + '</div>'
+        + (data.conversationId ? emailButton(base + '/#/admin/chats?id=' + encodeURIComponent(data.conversationId), 'Open and reply') : '')
     },
     chat_admin_reply: {
       subject: 'A new reply from RavenX',
-      html: '<p>Hi ' + v.name + ', a RavenX administrator replied to your message.</p>'
-        + '<blockquote style="margin:18px 0;padding:14px 18px;border-left:3px solid #e9691c;background:#f7f5f0">' + v.message + '</blockquote>'
+      html: '<p>Hi ' + text('name', 'there') + ', a RavenX administrator replied to your message.</p>'
+        + '<div style="margin:18px 0;padding:16px 18px;border-left:3px solid #d95724;background:#f7f0e7;color:#46392f;white-space:pre-wrap">' + text('message') + '</div>'
         + '<p>Open RavenX on the same browser you used for your chat to continue the conversation.</p>'
         + emailButton(base + '/#/', 'Open RavenX')
     },
     registration_approved: {
       subject: 'Registration approved – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your registration is approved.</p><p>Your BIB is <strong>' + v.bib + '</strong>.</p>' + emailButton(userUrl, 'Open My Events')
+      html: '<p>Hi ' + text('name', 'runner') + ', your registration is approved. Your place in the event is confirmed.</p>'
+        + raceCard(data) + emailButton(userUrl, 'Open My Events')
     },
     registration_rejected: {
       subject: 'Registration update – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your registration was not approved.</p><p>Reason: ' + v.reason + '</p>' + emailButton(userUrl, 'Review your registration')
+      html: '<p>Hi ' + text('name', 'runner') + ', we’re sorry, but this registration was not approved.</p>'
+        + emailDetails([['Event', data.eventName], ['Reason', data.reason]]) + emailButton(userUrl, 'Review your registration')
     },
     submission_received: {
       subject: 'Run submission received – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your run submission for BIB ' + v.bib + ' is waiting for review.</p>' + emailButton(userUrl, 'Check submission status')
+      html: '<p>Hi ' + text('name', 'runner') + ', we received your run submission. It is now waiting for review.</p>'
+        + raceCard(data) + emailButton(userUrl, 'Check submission status')
     },
     run_approved: {
       subject: 'Run approved – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your run for BIB ' + v.bib + ' was approved.</p><p>Your certificate is available in your dashboard.</p>' + emailButton(userUrl, 'View your certificate')
+      html: '<p>Hi ' + text('name', 'runner') + ', your run has been approved. Congratulations on completing the challenge.</p>'
+        + raceCard(data) + '<p>Your certificate is ready in your RavenX dashboard.</p>' + emailButton(userUrl, 'View your certificate')
     },
     run_rejected: {
       subject: 'Run submission update – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your run for BIB ' + v.bib + ' needs an update.</p><p>Feedback: ' + v.feedback + '</p><p>You may submit an updated activity from your event dashboard.</p>' + emailButton(userUrl, 'Open My Events')
+      html: '<p>Hi ' + text('name', 'runner') + ', your run submission needs an update before it can be approved.</p>'
+        + raceCard(data) + emailDetails([['Review feedback', data.feedback]])
+        + '<p>You can submit an updated activity from your event dashboard.</p>' + emailButton(userUrl, 'Open My Events')
     },
     certificate_available: {
       subject: 'Certificate available – ' + (data.eventName || 'Shadow Sprint Run 2026'),
-      html: '<p>Hi ' + v.name + ', your verified finisher certificate is ready.</p>' + emailButton(userUrl, 'Preview or download certificate')
+      html: '<p>Hi ' + text('name', 'runner') + ', your verified finisher certificate is ready. Take a moment to celebrate the work behind every mile.</p>'
+        + raceCard(data) + emailButton(userUrl, 'Preview or download certificate')
     },
     password_reset: {
       subject: 'Set or reset your RavenX password',
-      html: '<p>Use this one-time link to set your password. The link expires in 30 minutes.</p>' + emailButton(data.resetUrl, 'Set password')
+      html: '<p>Use the secure one-time link below to set your password. It expires in 30 minutes.</p>' + emailButton(data.resetUrl, 'Set password')
     },
     password_reset_code: {
       subject: 'Your RavenX password reset code',
-      html: '<p>We received a request to reset the password for your RavenX account. Enter this code on the reset page:</p>'
-        + '<div style="margin:22px 0;padding:18px 22px;border-radius:12px;background:#f5f7f4;border:1px solid #e5e9e3;text-align:center;color:#18211c;font-size:32px;font-weight:800;letter-spacing:.28em">'
-        + v.code + '</div><p>This code can be used once and expires in 10 minutes.</p><p>If you did not request a password reset, you can ignore this email.</p>'
+      html: '<p>We received a request to reset the password for your RavenX account. Enter this one-time code on the reset page:</p>'
+        + '<div style="margin:22px 0;padding:20px 16px;background:#182b29;text-align:center;color:#fffaf2;font-size:34px;font-weight:900;letter-spacing:.28em">'
+        + text('code') + '</div><p>This code can be used once and expires in 10 minutes.</p><p>If you did not request a password reset, you can ignore this email.</p>'
     },
     shop_order_admin: {
-      subject: 'New RavenX shop order – ' + v.orderCode,
-      html: '<p>A new jersey order is waiting for delivery processing.</p><dl>'
-        + '<dt>Order</dt><dd>' + v.orderCode + '</dd><dt>Product</dt><dd>' + v.productName + '</dd>'
-        + '<dt>Size / quantity</dt><dd>' + v.size + ' / ' + v.quantity + '</dd><dt>Total</dt><dd>৳' + v.total + '</dd>'
-        + '<dt>Customer</dt><dd>' + v.name + '</dd><dt>Phone</dt><dd>' + v.phone + '</dd>'
-        + '<dt>Email</dt><dd>' + v.email + '</dd><dt>District</dt><dd>' + v.district + '</dd>'
-        + '<dt>Address</dt><dd>' + v.address + '</dd></dl>' + emailButton(base + '/#/admin/shop-orders', 'Review delivery order')
+      subject: 'New RavenX shop order – ' + text('orderCode', 'New order'),
+      html: '<p>A new shop order is ready for delivery processing.</p>' + emailDetails([
+        ['Order', data.orderCode], ['Product', data.productName], ['Size', data.size], ['Quantity', data.quantity],
+        ['Total', data.total === undefined ? '' : '৳' + data.total], ['Customer', data.name], ['Phone', data.phone],
+        ['Email', data.email], ['District', data.district], ['Address', data.address]
+      ]) + emailButton(base + '/#/admin/shop-orders', 'Review delivery order')
     },
     shop_order_received: {
-      subject: 'RavenX received your jersey order – ' + v.orderCode,
-      html: '<p>Hi ' + v.name + ', we received your Shadow Sprint jersey order.</p><dl>'
-        + '<dt>Order</dt><dd>' + v.orderCode + '</dd><dt>Size / quantity</dt><dd>' + v.size + ' / ' + v.quantity + '</dd>'
-        + '<dt>Total</dt><dd>৳' + v.total + '</dd></dl><p>RavenX will contact you to confirm delivery and payment arrangements.</p>'
+      subject: 'RavenX received your jersey order – ' + text('orderCode', 'Order received'),
+      html: '<p>Hi ' + text('name', 'there') + ', we received your RavenX shop order.</p>' + emailDetails([
+        ['Order', data.orderCode], ['Product', data.productName], ['Size', data.size], ['Quantity', data.quantity],
+        ['Total', data.total === undefined ? '' : '৳' + data.total]
+      ]) + '<p>RavenX will contact you to confirm delivery and payment arrangements.</p>'
     }
   };
   const selected = templates[name];
   if (!selected) throw new Error('Unknown email template: ' + name);
-  return { subject: selected.subject, html: emailLayout(selected.subject, selected.html) };
+  return { subject: selected.subject, html: emailLayout(selected.subject, selected.html, data) };
 }
 
 async function enqueueEmail(client, recipient, templateName, data) {
