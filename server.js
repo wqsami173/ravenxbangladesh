@@ -14,7 +14,7 @@ const rateLimit = require('express-rate-limit').rateLimit;
 const { z } = require('zod');
 
 const { pool, withTransaction, requireDatabase, hasDatabaseUrl } = require('./src/db');
-const { enqueueEmail, processOutbox, ADMIN_EMAIL, emailConfigured } = require('./src/email');
+const { enqueueEmail, processOutbox, ADMIN_EMAIL, emailConfigured, template: emailTemplate } = require('./src/email');
 const { uploadBuffer, deleteAsset, storageConfigured } = require('./src/storage');
 const {
   DISTANCES, bibPrefix, makeBibNumber, feeForEvent, detectImageMime, validateActivityUrl, hashPasswordResetCode,
@@ -2099,30 +2099,101 @@ app.patch('/api/admin/notifications/:id/read', requireAdmin, asyncRoute(async (r
   res.json({ ok: true });
 }));
 
-app.get('/api/admin/email-outbox/failed', requireAdmin, asyncRoute(async (req, res) => {
+app.get('/api/admin/email-outbox', requireAdmin, asyncRoute(async (req, res) => {
+  const status = String(req.query.status || 'AWAITING_APPROVAL').toUpperCase();
+  if (!['AWAITING_APPROVAL', 'FAILED', 'SENT', 'ALL'].includes(status)) throw new HttpError(400, 'Invalid email queue filter.');
   const result = await pool.query(
-    'SELECT id,recipient,template_name,status,attempts,last_error,created_at ' +
-    'FROM email_outbox WHERE status=$1 ORDER BY created_at DESC LIMIT 100',
-    ['FAILED']
+    'SELECT id,recipient,template_name,status,attempts,last_error,created_at,sent_at FROM email_outbox ' +
+    "WHERE (($1=$2 AND status<>'DELETED') OR status=$1) ORDER BY created_at DESC LIMIT 200",
+    [status, 'ALL']
   );
-  res.json({ messages: result.rows });
+  res.json({ messages: result.rows, emailConfigured });
+}));
+
+app.get('/api/admin/email-outbox/:id', requireAdmin, asyncRoute(async (req, res) => {
+  const result = await pool.query(
+    'SELECT id,recipient,template_name,payload,status,attempts,last_error,created_at,sent_at FROM email_outbox WHERE id=$1',
+    [req.params.id]
+  );
+  if (!result.rowCount) throw new HttpError(404, 'Email draft not found.');
+  const row = result.rows[0];
+  const payload = { ...(row.payload || {}) };
+  if (row.template_name === 'password_reset_code') payload.code = '••••••';
+  const rendered = emailTemplate(row.template_name, payload);
+  res.json({ message: {
+    id: row.id, recipient: row.recipient, templateName: row.template_name, status: row.status,
+    attempts: row.attempts, lastError: row.last_error, createdAt: row.created_at, sentAt: row.sent_at,
+    subject: rendered.subject, previewHtml: rendered.html
+  } });
+}));
+
+app.post('/api/admin/email-outbox/:id/send', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  if (!emailConfigured) throw new HttpError(503, 'Email delivery is not configured on the server.');
+  const queued = await withTransaction(async (client) => {
+    const updated = await client.query(
+      "UPDATE email_outbox SET status='READY_TO_SEND',attempts=0,next_attempt_at=NOW(),locked_at=NULL,last_error=NULL " +
+      "WHERE id=$1 AND status IN ('AWAITING_APPROVAL','FAILED') RETURNING id,recipient,template_name,payload",
+      [req.params.id]
+    );
+    if (!updated.rowCount) throw new HttpError(409, 'This email is already sent, deleted, or being processed.');
+    if (updated.rows[0].template_name === 'password_reset_code') {
+      const code = await client.query(
+        'UPDATE password_reset_tokens SET expires_at=NOW()+INTERVAL \'10 minutes\' WHERE id=$1 AND used_at IS NULL RETURNING id',
+        [updated.rows[0].payload?.tokenId]
+      );
+      if (!code.rowCount) throw new HttpError(409, 'This password reset request has been replaced. The participant must request a new code.');
+    }
+    await auditLog(client, req.user.id, 'EMAIL_APPROVED_TO_SEND', 'email_outbox', updated.rows[0].id, {
+      recipient: updated.rows[0].recipient, template: updated.rows[0].template_name
+    });
+    return updated.rows[0];
+  });
+  await processOutbox();
+  let deliveryStatus = '';
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const delivered = await pool.query('SELECT status FROM email_outbox WHERE id=$1', [queued.id]);
+    deliveryStatus = delivered.rows[0]?.status || '';
+    if (deliveryStatus === 'SENT' || deliveryStatus === 'FAILED') break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  if (deliveryStatus !== 'SENT') {
+    return res.status(502).json({ error: deliveryStatus === 'FAILED'
+      ? 'The provider could not deliver this email. Review the error and try Send again when ready.'
+      : 'The email did not finish sending. Check its status in the email drafts page.' });
+  }
+  res.json({ id: queued.id, status: deliveryStatus, message: 'Email sent.' });
+}));
+
+app.delete('/api/admin/email-outbox/:id', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
+  const deleted = await withTransaction(async (client) => {
+    const result = await client.query(
+      "UPDATE email_outbox SET status='DELETED',locked_at=NULL WHERE id=$1 AND status IN ('AWAITING_APPROVAL','FAILED') RETURNING id,recipient,template_name",
+      [req.params.id]
+    );
+    if (!result.rowCount) throw new HttpError(409, 'Only unsent or failed email drafts can be deleted.');
+    await auditLog(client, req.user.id, 'EMAIL_DRAFT_DELETED', 'email_outbox', result.rows[0].id, {
+      recipient: result.rows[0].recipient, template: result.rows[0].template_name
+    });
+    return result.rows[0];
+  });
+  res.json({ id: deleted.id, status: 'DELETED' });
 }));
 
 app.post('/api/admin/email-outbox/:id/retry', requireAdmin, writeLimiter, asyncRoute(async (req, res) => {
   const result = await withTransaction(async (client) => {
     const updated = await client.query(
-      "UPDATE email_outbox SET status='PENDING',attempts=0,next_attempt_at=NOW(),locked_at=NULL,last_error=NULL " +
+      "UPDATE email_outbox SET status='AWAITING_APPROVAL',attempts=0,next_attempt_at=NOW(),locked_at=NULL,last_error=NULL " +
       "WHERE id=$1 AND status='FAILED' RETURNING id,recipient,template_name",
       [req.params.id]
     );
     if (!updated.rowCount) throw new HttpError(404, 'Failed email delivery was not found.');
-    await auditLog(client, req.user.id, 'EMAIL_RETRY_REQUESTED', 'email_outbox', updated.rows[0].id, {
+    await auditLog(client, req.user.id, 'EMAIL_RETURNED_FOR_REVIEW', 'email_outbox', updated.rows[0].id, {
       recipient: updated.rows[0].recipient,
       template: updated.rows[0].template_name
     });
     return updated.rows[0];
   });
-  res.json({ id: result.id, status: 'PENDING', message: 'Email queued for retry.' });
+  res.json({ id: result.id, status: 'AWAITING_APPROVAL', message: 'Email returned to the review queue.' });
 }));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found.' }));

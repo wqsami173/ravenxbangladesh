@@ -278,6 +278,10 @@ td small { display: block; margin-top: 4px; color: var(--soft); }
 .details-dialog { width: min(720px, calc(100% - 28px)); max-height: min(88vh, 850px); padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: var(--surface); box-shadow: var(--shadow); }
 .details-dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .details-dialog-inner { padding: 0; }
+.email-preview-dialog { width: min(900px, calc(100% - 24px)); }
+.email-preview-frame { display: block; width: 100%; height: min(72vh, 780px); border: 1px solid var(--line); border-radius: 10px; background: #eee8de; }
+.email-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.email-actions small { display: block; color: var(--muted); }
 .detail-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-bottom: 18px; }
 .detail-list > div { display: grid; gap: 5px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: #101612; }
 .detail-list span { color: var(--soft); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }

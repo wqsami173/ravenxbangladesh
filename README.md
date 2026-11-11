@@ -96,7 +96,7 @@ Use separate generated values for `SESSION_SECRET` and `ADMIN_SETUP_SECRET`. Nev
 
 ### Email setup
 
-To send from `ravenxbdofficial@gmail.com`, enable Google 2-Step Verification and create a separate App Password for RavenX. Set `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `.env` or Render, then restart the server. Never use or share the account's regular password. App Password availability and setup requirements are described in [Google's App Password guidance](https://support.google.com/mail/answer/185833?hl=en). Alternatively, set a Resend API key and verified sender. The backend places messages in `email_outbox` in the same database transaction as registrations, reviews, and shop orders, then retries delivery with backoff up to 12 attempts. Existing queued messages send after a provider is configured and the server restarts. Failed deliveries can be retried in Admin. Admin alerts go to `wqsami173@gmail.com` by default. Outlook automation is not needed for Gmail sending.
+To send from `ravenxbdofficial@gmail.com`, enable Google 2-Step Verification and create a separate App Password for RavenX. Set `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `.env` or Render, then restart the server. Never use or share the account's regular password. App Password availability and setup requirements are described in [Google's App Password guidance](https://support.google.com/mail/answer/185833?hl=en). Alternatively, set a Resend API key and verified sender. The backend places email drafts in `email_outbox` in the same database transaction as registrations, reviews, and shop orders. Drafts wait in **Admin → Email drafts** until an administrator previews and sends or deletes them. Sending failures return to the admin review queue; they are not retried automatically. Password-reset codes are masked in previews and their 10-minute validity window begins when the admin sends them. Admin alerts go to `wqsami173@gmail.com` by default. Outlook automation is not needed for Gmail sending.
 
 ### Visitor chat
 
@@ -185,7 +185,8 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 | `PATCH` | `/api/admin/registrations/:registrationId` | Admin approval/rejection (`action`; `reason` when rejecting). |
 | `PATCH` | `/api/admin/submissions/:submissionId` | Admin approval/rejection (`action`; `feedback` when rejecting). |
 | `GET`, `PATCH` | `/api/admin/notifications`, `/api/admin/notifications/:id/read` | Admin notification list/read actions. |
-| `GET`, `POST` | `/api/admin/email-outbox/failed`, `/api/admin/email-outbox/:id/retry` | View failed messages and retry one. |
+| `GET` | `/api/admin/email-outbox?status=AWAITING_APPROVAL\|FAILED\|SENT\|ALL`, `/api/admin/email-outbox/:id` | Browse the admin email queue and preview a rendered draft (password reset codes are masked). |
+| `POST`, `DELETE` | `/api/admin/email-outbox/:id/send`, `/api/admin/email-outbox/:id` | Explicitly send an approved draft or delete an unsent/failed draft. |
 | `GET` | `/api/admin/chats`, `/api/admin/chats/:conversationId` | Admin-only direct message inbox and transcript. |
 | `PATCH`, `POST` | `/api/admin/chats/:conversationId`, `/api/admin/chats/:conversationId/messages` | Close a conversation or send a text reply. Replies are also emailed when the mail provider is configured. |
 | `DELETE` | `/api/admin/chats/:conversationId`, `/api/admin/chats?status=...` | Delete one chat or clear the current inbox filter; deletes chat messages, linked admin alerts, and associated chat email records. |
@@ -196,7 +197,7 @@ All API responses are JSON unless an endpoint explicitly returns a protected ima
 
 ## Database migration
 
-Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/008_anonymous_visitor_analytics.sql`.
+Migration files: `db/migrations/001_ravenx_platform.sql` through `db/migrations/009_manual_email_approval.sql`.
 
 `npm run migrate` uses the configured `DATABASE_URL`, records applied files in `schema_migrations`, and applies each SQL file transactionally. The migrations preserve legacy registration tables, payment columns, and historical image references; backfill users without inventing passwords; and create event workflows, shop products/orders, submissions, certificates, notifications, audit, session, BIB-counter, email-outbox, and text-chat structures. Migration 005 adds optional size selection to products while retaining existing jersey sizes. Migration 006 adds bounded attempts for password reset codes. Migration 007 creates direct visitor-to-admin text conversations; its old feedback and Q&A tables/status values remain unused for compatibility. Migration 008 adds first-party anonymous public-page visits and duration data without storing names, emails, or IP addresses. Current participant screenshot and student ID files remain local to the browser and are excluded from requests and storage. As a result, participants can bypass the browser image requirement, and the administrator cannot inspect those images.
 

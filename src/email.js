@@ -268,7 +268,7 @@ async function processOutbox() {
       '(status = $1 AND next_attempt_at <= NOW()) OR ' +
       "(status = $2 AND locked_at < NOW() - INTERVAL '5 minutes')) " +
       'ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 10',
-      ['PENDING', 'SENDING']
+      ['READY_TO_SEND', 'SENDING']
     );
     rows = claimed.rows;
     if (rows.length) {
@@ -309,14 +309,11 @@ async function processOutbox() {
       );
     } catch (error) {
       const attempts = Number(email.attempts || 0) + 1;
-      const status = attempts >= 12 ? 'FAILED' : 'PENDING';
-      const delayMinutes = Math.min(60, 2 ** Math.min(attempts, 6));
       await pool.query(
-        "UPDATE email_outbox SET status=$2, payload=CASE WHEN $2='FAILED' AND template_name='password_reset_code' THEN '{}'::jsonb ELSE payload END, locked_at=NULL, last_error=$3, " +
-        "next_attempt_at=NOW() + ($4::text || ' minutes')::interval WHERE id=$1",
-        [email.id, status, String(error.message).slice(0, 500), delayMinutes]
+        "UPDATE email_outbox SET status='FAILED', payload=CASE WHEN template_name='password_reset_code' THEN '{}'::jsonb ELSE payload END, locked_at=NULL, last_error=$2 WHERE id=$1",
+        [email.id, String(error.message).slice(0, 500)]
       );
-      console.error('Email delivery failed; queued for retry', { id: email.id, attempts, status });
+      console.error('Email delivery failed; admin review is required to retry', { id: email.id, attempts, status: 'FAILED' });
     }
   }
 }

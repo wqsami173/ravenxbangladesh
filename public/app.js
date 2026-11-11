@@ -463,14 +463,14 @@
 
   function dashSidebar(active) {
     const links = user.role === 'admin'
-      ? [['/admin','◈','Overview'],['/admin/events','◉','Events & details'],['/admin/registrations','▤','Registrations'],['/admin/submissions','↗','Run submissions'],['/admin/chats','✦','Chat inbox'],['/admin/analytics','◷','Visitor analytics'],['/admin/shop-products','▦','Shop items'],['/admin/shop-orders','▣','Shop delivery'],['/admin/notifications','◉','Notifications']]
+      ? [['/admin','◈','Overview'],['/admin/events','◉','Events & details'],['/admin/registrations','▤','Registrations'],['/admin/submissions','↗','Run submissions'],['/admin/emails','✉','Email drafts'],['/admin/chats','✦','Chat inbox'],['/admin/analytics','◷','Visitor analytics'],['/admin/shop-products','▦','Shop items'],['/admin/shop-orders','▣','Shop delivery'],['/admin/notifications','◉','Notifications']]
       : [['/dashboard','◈','Overview'],['/my-events','◫','My Events'],['/certificates','◇','Certificates'],['/notifications','◉','Notifications'],['/profile','◎','Profile']];
     return `<aside class="dashboard-sidebar"><div class="sidebar-user"><span class="avatar">${esc((user.name || 'R').slice(0,1).toUpperCase())}</span><div><strong>${esc(user.name)}</strong><small>${user.role === 'admin' ? 'Administrator' : 'Participant'}</small></div></div><div class="sidebar-label">Workspace</div><nav class="sidebar-nav">${links.map(([href,icon,label])=>`<a class="${active === href ? 'active' : ''}" href="#${href}"><span class="nav-icon">${icon}</span>${label}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="sidebar-nav"><button type="button" data-action="logout"><span class="nav-icon">↪</span>Log out</button></div></div></aside>`;
   }
 
   function mobileDashNav(active) {
     const links = user.role === 'admin'
-      ? [['/admin','◈','Home'],['/admin/events','◉','Events'],['/admin/registrations','▤','Registrations'],['/admin/chats','✦','Chats'],['/admin/analytics','◷','Visitors'],['/admin/shop-orders','▣','Orders']]
+      ? [['/admin','◈','Home'],['/admin/events','◉','Events'],['/admin/registrations','▤','Registrations'],['/admin/emails','✉','Emails'],['/admin/chats','✦','Chats'],['/admin/shop-orders','▣','Orders']]
       : [['/dashboard','◈','Home'],['/my-events','◫','Events'],['/certificates','◇','Awards'],['/notifications','◉','Alerts']];
     return `<nav class="mobile-bottom-nav" aria-label="Dashboard navigation">${links.map(([href,icon,label])=>`<a class="${active === href ? 'active' : ''}" href="#${href}"><span class="nav-icon">${icon}</span>${label}</a>`).join('')}</nav>`;
   }
@@ -584,11 +584,22 @@
     let stats = {};
     let error = '';
     try { stats = (await api('/api/admin/summary')).stats || {}; } catch (e) { error = e.message; }
-    let failedEmails = [];
-    try { failedEmails = (await api('/api/admin/email-outbox/failed')).messages || []; } catch {}
-    const emailPanel = failedEmails.length ? `<section class="panel"><div class="panel-heading"><h2>Failed email deliveries</h2><span class="pill pill-status rejected">${failedEmails.length} need retry</span></div><div class="table-wrap"><table><thead><tr><th>Recipient</th><th>Template</th><th>Attempts</th><th>Last error</th><th>Created</th><th>Action</th></tr></thead><tbody>${failedEmails.map((mail)=>`<tr><td>${esc(mail.recipient)}</td><td>${esc(mail.template_name)}</td><td>${esc(mail.attempts)}</td><td>${esc(mail.last_error || 'Delivery failed')}</td><td>${date(mail.created_at)}</td><td><button class="button button-primary button-small" data-action="retry-email" data-id="${esc(mail.id)}">Retry</button></td></tr>`).join('')}</tbody></table></div></section>` : '<section class="panel"><div class="panel-content"><span class="eyebrow">Email delivery</span><p>No failed email deliveries need attention.</p></div></section>';
-    const content = `${error ? `<div class="db-banner">${esc(error)}</div>` : ''}<div class="stat-grid">${stat('Participants',stats.participants,'Registered accounts')}${stat('Registrations',stats.registrations,'All event requests')}${stat('Pending registrations',stats.pending_registrations,'Awaiting review')}${stat('Approved registrations',stats.approved_registrations,'BIBs available')}${stat('Run submissions',stats.submissions,'Submitted activities')}${stat('Pending runs',stats.pending_submissions,'Awaiting review')}${stat('Approved runs',stats.approved_runs,'Passed review')}${stat('Certificates issued',stats.certificates_issued,'Unlocked certificates')}${stat('Shop orders',stats.shop_orders,'Jersey orders')}</div><div class="rules-grid"><article class="info-card"><span class="eyebrow">Registration queue</span><h3>Review participant requests</h3><p>Approve to assign a unique BIB, or reject with a reason.</p>${link('/admin/registrations','Open registrations','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Run review</span><h3>Verify activity submissions</h3><p>Open activity links from any running app, then approve or reject.</p>${link('/admin/submissions','Open submissions','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Shop delivery</span><h3>Prepare jersey orders</h3><p>Review customer details and select orders to hand to your courier platform.</p>${link('/admin/shop-orders','Open delivery orders','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Admin alerts</span><h3>Recent platform activity</h3><p>Notifications for new registrations, runs, and shop orders.</p>${link('/admin/notifications','Open notifications','button button-dark button-small')}</article></div>${emailPanel}`;
+    const content = `${error ? `<div class="db-banner">${esc(error)}</div>` : ''}<div class="stat-grid">${stat('Participants',stats.participants,'Registered accounts')}${stat('Registrations',stats.registrations,'All event requests')}${stat('Pending registrations',stats.pending_registrations,'Awaiting review')}${stat('Approved registrations',stats.approved_registrations,'BIBs available')}${stat('Run submissions',stats.submissions,'Submitted activities')}${stat('Pending runs',stats.pending_submissions,'Awaiting review')}${stat('Approved runs',stats.approved_runs,'Passed review')}${stat('Certificates issued',stats.certificates_issued,'Unlocked certificates')}${stat('Shop orders',stats.shop_orders,'Jersey orders')}</div><div class="rules-grid"><article class="info-card"><span class="eyebrow">Registration queue</span><h3>Review participant requests</h3><p>Approve to assign a unique BIB, or reject with a reason.</p>${link('/admin/registrations','Open registrations','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Run review</span><h3>Verify activity submissions</h3><p>Open activity links from any running app, then approve or reject.</p>${link('/admin/submissions','Open submissions','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Email drafts</span><h3>Review before sending</h3><p>Every system email waits here for your approval. Preview it, send it, or delete it.</p>${link('/admin/emails','Open email drafts','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Shop delivery</span><h3>Prepare jersey orders</h3><p>Review customer details and select orders to hand to your courier platform.</p>${link('/admin/shop-orders','Open delivery orders','button button-dark button-small')}</article><article class="info-card"><span class="eyebrow">Admin alerts</span><h3>Recent platform activity</h3><p>Notifications for new registrations, runs, and shop orders.</p>${link('/admin/notifications','Open notifications','button button-dark button-small')}</article></div>`;
     dashLayout(content, '/admin', 'Admin overview', 'Registration, run review, and certificate activity.');
+  }
+
+  async function renderAdminEmails() {
+    if (!user) return authPage('login');
+    if (user.role !== 'admin') return dashLayout('<div class="db-banner">Administrator access is required.</div>', '/admin/emails', 'Access denied', 'This area is restricted.');
+    const query = routeInfo().query;
+    const status = query.get('status') || 'AWAITING_APPROVAL';
+    let result = { messages: [], emailConfigured: false };
+    let error = '';
+    try { result = await api('/api/admin/email-outbox?status=' + encodeURIComponent(status)); } catch (e) { error = e.message; }
+    const filters = [['AWAITING_APPROVAL','Needs review'],['FAILED','Failed'],['SENT','Sent'],['ALL','All']];
+    const rows = (result.messages || []).map((mail) => `<tr><td><strong>${esc(mail.recipient)}</strong><small>${esc(mail.template_name)}</small></td><td>${esc(mail.status)}</td><td>${date(mail.created_at)}</td><td>${mail.last_error ? esc(mail.last_error) : '—'}</td><td class="email-actions"><button class="button button-quiet button-small" data-action="preview-email" data-id="${esc(mail.id)}">Preview</button>${['AWAITING_APPROVAL','FAILED'].includes(mail.status) ? `<button class="button button-primary button-small" data-action="send-email" data-id="${esc(mail.id)}" ${result.emailConfigured ? '' : 'disabled'}>Send</button><button class="button button-quiet button-small" data-action="delete-email" data-id="${esc(mail.id)}">Delete</button>` : ''}</td></tr>`).join('');
+    const content = `${error ? `<div class="db-banner">${esc(error)}</div>` : ''}<section class="panel"><div class="panel-content"><p>System emails are saved as drafts. Nothing is sent until you press Send. Failed messages can be reviewed and sent again.</p><p class="help-text">Password reset drafts start their 10-minute code validity window when sent. Send those promptly.</p>${!result.emailConfigured ? '<div class="notice error">Email provider is not configured, so Send is unavailable.</div>' : ''}</div><div class="data-toolbar"><div class="toolbar-group">${filters.map(([key,label]) => `<a class="button ${status===key?'button-primary':'button-quiet'} button-small" href="#/admin/emails?status=${key}">${label}</a>`).join('')}</div><span class="eyebrow">${(result.messages || []).length} messages</span></div><div class="table-wrap"><table><thead><tr><th>Recipient / template</th><th>Status</th><th>Prepared</th><th>Delivery note</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No emails in this view.</td></tr>'}</tbody></table></div></section>`;
+    dashLayout(content, '/admin/emails', 'Email drafts', 'Review, preview, send, or delete system email drafts.');
   }
 
   function adminImageField(name, label, currentUrl = '', required = false) {
@@ -839,6 +850,7 @@
     if (path === '/admin/events') return renderAdminEvents();
     if (path === '/admin/registrations') return renderAdminRegistrations();
     if (path === '/admin/submissions') return renderAdminSubmissions();
+    if (path === '/admin/emails') return renderAdminEmails();
     if (path === '/admin/chats') return renderAdminChats();
     if (path === '/admin/analytics') return renderAdminAnalytics();
     if (path === '/admin/shop-products') return renderAdminShopProducts();
@@ -1185,11 +1197,36 @@
       catch (error) { notify(error.message); }
       return;
     }
-    if (name === 'retry-email') {
+    if (name === 'preview-email') {
       try {
-        await api('/api/admin/email-outbox/' + encodeURIComponent(action.dataset.id) + '/retry', { method: 'POST', body: {} });
-        notify('Email queued for retry.');
-        await renderAdmin();
+        const message = (await api('/api/admin/email-outbox/' + encodeURIComponent(action.dataset.id))).message;
+        const dialog = document.createElement('dialog');
+        dialog.className = 'details-dialog email-preview-dialog';
+        dialog.innerHTML = `<div class="details-dialog-inner"><div class="panel-heading"><div><span class="eyebrow">${esc(message.templateName)} · ${esc(message.status)}</span><h2>${esc(message.subject)}</h2><p>To: ${esc(message.recipient)}</p></div><button class="button button-quiet button-small" data-action="close-details">Close</button></div><div class="panel-content"><iframe class="email-preview-frame" title="Email preview" sandbox=""></iframe></div><div class="panel-content email-actions">${['AWAITING_APPROVAL','FAILED'].includes(message.status) ? `<button class="button button-primary" data-action="send-email" data-id="${esc(message.id)}">Send email</button><button class="button button-quiet" data-action="delete-email" data-id="${esc(message.id)}">Delete draft</button>` : ''}</div></div>`;
+        dialog.querySelector('iframe').srcdoc = message.previewHtml;
+        app.append(dialog);
+        dialog.addEventListener('click', (event) => { if (event.target === dialog) { dialog.close(); dialog.remove(); } });
+        dialog.showModal();
+      } catch (error) { notify(error.message); }
+      return;
+    }
+    if (name === 'send-email') {
+      if (!window.confirm('Send this email now?')) return;
+      try {
+        const result = await api('/api/admin/email-outbox/' + encodeURIComponent(action.dataset.id) + '/send', { method: 'POST', body: {} });
+        notify(result.message || 'Email sent.');
+        action.closest('dialog')?.close(); action.closest('dialog')?.remove();
+        await renderAdminEmails();
+      } catch (error) { notify(error.message); await renderAdminEmails(); }
+      return;
+    }
+    if (name === 'delete-email') {
+      if (!window.confirm('Delete this unsent email draft?')) return;
+      try {
+        await api('/api/admin/email-outbox/' + encodeURIComponent(action.dataset.id), { method: 'DELETE' });
+        notify('Email draft deleted.');
+        action.closest('dialog')?.close(); action.closest('dialog')?.remove();
+        await renderAdminEmails();
       } catch (error) { notify(error.message); }
       return;
     }
