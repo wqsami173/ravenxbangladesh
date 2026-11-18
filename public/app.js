@@ -153,9 +153,9 @@
     if (isPublicPage && typeof window.fbq === 'function') window.fbq('track', 'PageView');
   }
 
-  function trackMetaRegistration(registrationId) {
+  function trackMetaRegistration(registrationId, value) {
     if (!registrationId || typeof window.fbq !== 'function') return;
-    window.fbq('track', 'CompleteRegistration', {}, { eventID: 'registration_' + registrationId });
+    window.fbq('track', 'Purchase', { value: Number(value || 0), currency: 'BDT' }, { eventID: 'registration_' + registrationId });
   }
 
   function notify(message) {
@@ -1003,7 +1003,7 @@
         payload.append('fbp', cookieValue('_fbp'));
         payload.append('fbc', cookieValue('_fbc'));
         const result = await api('/api/events/' + encodeURIComponent(form.dataset.eventSlug || EVENT.slug) + '/registrations', { method: 'POST', body: payload });
-        trackMetaRegistration(result.registrationId);
+        trackMetaRegistration(result.registrationId, result.registrationFee);
         if (result.accountCreated) {
           user = result.user || user;
           csrfToken = result.csrfToken || csrfToken;

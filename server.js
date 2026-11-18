@@ -1316,6 +1316,7 @@ async function submitRegistration(req, res) {
     });
     const response = {
       registrationId: registration.platform_id,
+      registrationFee: fee,
       status: registration.registration_status,
       bibNumber: registration.bib_number,
       accountCreated,
@@ -1350,7 +1351,7 @@ function sendMetaConversion(req, user, fee, registrationId) {
   if (fbp) userData.fbp = fbp;
   if (fbc) userData.fbc = fbc;
   const event = {
-    event_name: 'CompleteRegistration',
+    event_name: 'Purchase',
     event_time: Math.floor(Date.now() / 1000),
     event_id: 'registration_' + registrationId,
     action_source: 'website',
