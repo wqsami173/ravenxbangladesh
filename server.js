@@ -24,7 +24,7 @@ const { makeShadowSprintBibSvg, makeShadowSprintCertificateSvg, rasterizePng } =
 
 const PORT = Number(process.env.PORT || 3000);
 const FRONTEND_URL = process.env.FRONTEND_URL || ('http://localhost:' + PORT);
-const META_PIXEL_ID = '4523093594595275';
+const META_PIXEL_ID = '2497300097345494';
 const SESSION_SECRET = process.env.SESSION_SECRET
   || (process.env.NODE_ENV === 'production' ? '' : crypto.randomBytes(32).toString('hex'));
 
