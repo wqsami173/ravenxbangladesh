@@ -96,7 +96,12 @@ app.use(session({
 const publicDir = path.join(__dirname, 'public');
 app.use(express.static(publicDir, {
   etag: true,
-  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
+  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+  setHeaders(res, filePath) {
+    if (path.basename(filePath) === 'meta-pixel.js') {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    }
+  }
 }));
 
 app.use('/api', (req, res, next) => {
