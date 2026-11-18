@@ -1312,7 +1312,16 @@ async function submitRegistration(req, res) {
 
     if (accountCreated) await establishSession(req, participant.id, false);
     sendMetaConversion(req, participant, fee, registration.platform_id).catch((error) => {
-      console.error('Meta conversion notification failed', { code: error.code || 'UNKNOWN' });
+      console.error('Meta conversion notification failed', {
+        eventId: 'registration_' + registration.platform_id,
+        code: error.code || error.cause?.code || 'UNKNOWN',
+        httpStatus: error.httpStatus || null,
+        metaCode: error.metaCode || null,
+        metaSubcode: error.metaSubcode || null,
+        metaType: error.metaType || null,
+        metaMessage: error.metaMessage || null,
+        fbtraceId: error.fbtraceId || null
+      });
     });
     const response = {
       registrationId: registration.platform_id,
@@ -1343,7 +1352,12 @@ app.post('/api/register', writeLimiter, formFieldsOnly, optionalAuth, asyncRoute
 function sendMetaConversion(req, user, fee, registrationId) {
   const pixelId = process.env.META_PIXEL_ID;
   const accessToken = process.env.META_ACCESS_TOKEN;
-  if (!pixelId || !accessToken) return Promise.resolve();
+  if (!pixelId || !accessToken) {
+    console.error('Meta conversion is not configured', {
+      pixelIdPresent: Boolean(pixelId), accessTokenPresent: Boolean(accessToken)
+    });
+    return Promise.resolve();
+  }
   const hash = (value) => crypto.createHash('sha256').update(String(value).trim().toLowerCase()).digest('hex');
   const userData = { em: [hash(user.email)], ph: [hash(user.phone)] };
   const fbp = String(req.body.fbp || '').slice(0, 200);
@@ -1363,16 +1377,44 @@ function sendMetaConversion(req, user, fee, registrationId) {
     },
     custom_data: { currency: 'BDT', value: Number(fee) }
   };
-  const apiVersion = process.env.META_API_VERSION || 'v23.0';
+  const apiVersion = process.env.META_API_VERSION || 'v25.0';
   const url = 'https://graph.facebook.com/' + apiVersion + '/' + encodeURIComponent(pixelId)
     + '/events?access_token=' + encodeURIComponent(accessToken);
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: [event] })
-  }).then((response) => {
-    if (!response.ok) throw new Error('Meta returned HTTP ' + response.status);
-  });
+  const send = async (attempt) => {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: [event] }),
+        signal: AbortSignal.timeout(10000)
+      });
+    } catch (error) {
+      if (attempt < 2) return send(attempt + 1);
+      throw error;
+    }
+
+    let result = {};
+    try { result = await response.json(); } catch {}
+    if (!response.ok || result.error || !Number(result.events_received)) {
+      const metaError = result.error || {};
+      const error = new Error('Meta Conversions API rejected the event');
+      error.httpStatus = response.status;
+      error.metaCode = metaError.code || null;
+      error.metaSubcode = metaError.error_subcode || null;
+      error.metaType = metaError.type || null;
+      error.metaMessage = typeof metaError.message === 'string'
+        ? metaError.message.slice(0, 300).replaceAll(accessToken, '[REDACTED]')
+        : null;
+      error.fbtraceId = metaError.fbtrace_id || result.fbtrace_id || null;
+      throw error;
+    }
+    console.info('Meta conversion accepted', {
+      eventId: event.event_id, eventsReceived: Number(result.events_received),
+      fbtraceId: result.fbtrace_id || null
+    });
+  };
+  return send(1);
 }
 
 function registrationQuery(whereClause, params) {
