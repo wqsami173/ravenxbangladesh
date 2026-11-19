@@ -648,6 +648,14 @@ async function persistAdminEvent(req, res, existingId = null) {
 
 function serializeEvent(row) {
   if (!row) return null;
+  const metadata = { ...(row.metadata || {}) };
+  if (row.slug === 'shadow-sprint-2026') {
+    const limits = { '13km': 27, '6.66km': 10, '3.1km': 11 };
+    metadata.distances = (metadata.distances || []).map((distance) => ({
+      ...distance,
+      slot_limit: limits[String(distance.value || '').toLowerCase()] ?? distance.slot_limit
+    }));
+  }
   return {
     id: row.id,
     name: row.name,
@@ -657,7 +665,7 @@ function serializeEvent(row) {
     startDate: row.start_date,
     endDate: row.end_date,
     status: row.status,
-    metadata: row.metadata,
+    metadata,
     workflow: {
       registrationRequiresApproval: row.registration_requires_approval,
       registrationOpen: row.registration_open,
@@ -680,14 +688,44 @@ app.get('/api/events', asyncRoute(async (req, res) => {
     'FROM events e JOIN event_workflows w ON w.event_id=e.id WHERE e.status=$1 ORDER BY e.start_date DESC',
     ['PUBLISHED']
   );
-  res.json({ events: result.rows.map(serializeEvent) });
+  const events = await Promise.all(result.rows.map(async (row) => {
+    const event = serializeEvent(row);
+    const distances = event.metadata?.distances || [];
+    if (distances.some((item) => Number.isFinite(Number(item.slot_limit)))) {
+      const counts = await pool.query(
+        "SELECT selected_distance,COUNT(*)::int AS used FROM registrations WHERE event_id=$1 AND registration_status='APPROVED' GROUP BY selected_distance",
+        [row.id]
+      );
+      const usedByDistance = new Map(counts.rows.map((item) => [String(item.selected_distance).toLowerCase(), item.used]));
+      event.metadata.distances = distances.map((item) => {
+        const key = String(item.value || item.label || '').toLowerCase();
+        const used = usedByDistance.get(key) || 0;
+        return { ...item, slots_left: Math.max(0, Number(item.slot_limit) - used) };
+      });
+    }
+    return event;
+  }));
+  res.json({ events });
 }));
 
 app.get('/api/events/:slug', asyncRoute(async (req, res) => {
   if (!requireDatabase(res)) return;
   const row = await eventBySlug(req.params.slug);
   if (!row) return res.status(404).json({ error: 'Event not found.' });
-  res.json({ event: serializeEvent(row) });
+  const event = serializeEvent(row);
+  const distances = event.metadata?.distances || [];
+  if (distances.some((item) => Number.isFinite(Number(item.slot_limit)))) {
+    const counts = await pool.query(
+      "SELECT selected_distance,COUNT(*)::int AS used FROM registrations WHERE event_id=$1 AND registration_status='APPROVED' GROUP BY selected_distance",
+      [row.id]
+    );
+    const usedByDistance = new Map(counts.rows.map((item) => [String(item.selected_distance).toLowerCase(), item.used]));
+    event.metadata.distances = distances.map((item) => ({
+      ...item,
+      slots_left: Math.max(0, Number(item.slot_limit) - (usedByDistance.get(String(item.value || item.label || '').toLowerCase()) || 0))
+    }));
+  }
+  res.json({ event });
 }));
 
 app.get('/api/shop/products', asyncRoute(async (req, res) => {
@@ -1987,6 +2025,25 @@ app.patch('/api/admin/registrations/:registrationId', requireAdmin, writeLimiter
       });
       await auditLog(client, req.user.id, 'REGISTRATION_REJECTED', 'registration', registration.platform_id, { reason: parsed.data.reason });
       return { id: registration.platform_id, status: 'REJECTED' };
+    }
+
+    // Serialize approvals per event so simultaneous approvals cannot oversell a distance.
+    await client.query('SELECT id FROM events WHERE id=$1 FOR UPDATE', [registration.event_id]);
+    const distanceConfig = (registration.event_metadata?.distances || []).find((item) =>
+      String(item.value || item.label || '').toLowerCase() === String(registration.selected_distance || '').toLowerCase()
+    );
+    const shadowLimits = { '13km': 27, '6.66km': 10, '3.1km': 11 };
+    const slotLimit = registration.event_slug === 'shadow-sprint-2026'
+      ? shadowLimits[String(registration.selected_distance || '').toLowerCase()]
+      : Number(distanceConfig?.slot_limit);
+    if (Number.isFinite(Number(slotLimit))) {
+      const approved = await client.query(
+        "SELECT COUNT(*)::int AS used FROM registrations WHERE event_id=$1 AND selected_distance=$2 AND registration_status='APPROVED'",
+        [registration.event_id, registration.selected_distance]
+      );
+      if (Number(approved.rows[0].used) >= Number(slotLimit)) {
+        throw new HttpError(409, 'No slots remain for this distance.');
+      }
     }
 
     let bib = registration.bib_number;
